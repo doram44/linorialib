@@ -7386,6 +7386,7 @@ function Library:CreateWindow(...)
             OriginalName = Name; 
             Name = Name;
             TableType = "Tab";
+            Visible = true;
         }
 
         local TabButtonWidth = Library:GetTextBounds(Tab.Name, Library.Font, 16)
@@ -7701,6 +7702,7 @@ end
         Tab.Hide = Tab.HideTab
 
         function Tab:SetVisible(Visible: boolean)
+            Tab.Visible = Visible
             TabButton.Visible = Visible
 
             if not Visible and Library.ActiveTab == Name then
@@ -7734,6 +7736,7 @@ end
                 Side = Info.Side;
                 Tab = Tab;
                 TableType = "Groupbox";
+                Visible = true;
             }
 
             local BoxOuter = Library:Create("Frame", {
@@ -7802,6 +7805,10 @@ end
             })
 
             function Groupbox:Resize()
+                if Groupbox.Visible == false then
+                    return
+                end
+
                 local Size = 0
 
                 for _, Element in next, Groupbox.Container:GetChildren() do
@@ -7813,23 +7820,45 @@ end
                 BoxOuter.Size = UDim2.new(1, 0, 0, (20 * DPIScale + Size) + 2 + 2)
             end
 
+            function Groupbox:SetVisible(Visible: boolean)
+                Groupbox.Visible = Visible
+                BoxOuter.Visible = Visible
+
+                if Visible == true then
+                    Groupbox:Resize()
+                end
+            end
+
+            function Groupbox:Show()
+                Groupbox:SetVisible(true)
+            end
+
+            function Groupbox:Hide()
+                Groupbox:SetVisible(false)
+            end
+
             Groupbox.Container = Container
             setmetatable(Groupbox, BaseGroupbox)
 
             Groupbox:AddBlank(3)
-            Groupbox:Resize()
+
+            if Info.Visible == false then
+                Groupbox:Hide()
+            else
+                Groupbox:Resize()
+            end
 
             Tab.Groupboxes[Info.Name] = Groupbox
 
             return Groupbox
         end
 
-        function Tab:AddLeftGroupbox(Name)
-            return Tab:AddGroupbox({ Side = 1; Name = Name; })
+        function Tab:AddLeftGroupbox(Name, Visible)
+            return Tab:AddGroupbox({ Side = 1; Name = Name; Visible = Visible; })
         end
 
-        function Tab:AddRightGroupbox(Name)
-            return Tab:AddGroupbox({ Side = 2; Name = Name; })
+        function Tab:AddRightGroupbox(Name, Visible)
+            return Tab:AddGroupbox({ Side = 2; Name = Name; Visible = Visible; })
         end
 
         function Tab:AddTabbox(Info)
