@@ -665,27 +665,38 @@ function Library:AddDraggableLabel(Info)
         Parent = Outer;
     })
 
+    local Highlight = Library:Create("Frame", {
+        BackgroundColor3 = Library.AccentColor;
+        BorderSizePixel = 0;
+        Size = UDim2.new(1, 0, 0, 2);
+        ZIndex = ZIndex + 2;
+        Parent = Inner;
+    })
+
     Library:AddToRegistry(Outer, {
         BorderColor3 = "AccentColor";
     }, true)
     Library:AddToRegistry(Inner, {
         BackgroundColor3 = "MainColor";
     }, true)
+    Library:AddToRegistry(Highlight, {
+        BackgroundColor3 = "AccentColor";
+    }, true)
 
     local TextLabel = Library:CreateLabel({
-        Position = UDim2.new(0, 6, 0, 3);
-        Size = UDim2.new(1, -12, 1, -6);
+        Position = UDim2.new(0, 6, 0, 4);
+        Size = UDim2.new(1, -12, 1, -8);
         BackgroundTransparency = 1;
         Text = Text;
         TextSize = TextSize;
         RichText = false;
-        ZIndex = ZIndex + 2;
+        ZIndex = ZIndex + 3;
         Parent = Inner;
     })
 
     local function Refresh()
         local X, Y = Library:GetTextBounds(TextLabel.Text, Library.Font, TextLabel.TextSize, 10000)
-        Outer.Size = UDim2.fromOffset(math.ceil(X) + 16, math.ceil(Y) + 10)
+        Outer.Size = UDim2.fromOffset(math.ceil(X) + 16, math.ceil(Y) + 12)
     end
 
     Library:MakeDraggable(Outer, 9999, false)
@@ -3529,10 +3540,40 @@ do
             local Width = TextLabel.AbsoluteSize.X
             if Width <= 0 then return end
 
-            local _, Y = Library:GetTextBounds(Data.Text, Library.Font, TextLabel.TextSize, Vector2.new(Width, 10000))
+            local Y = 0
+
+            local GotParams, Params = pcall(function()
+                return Instance.new("GetTextBoundsParams")
+            end)
+
+            if GotParams and Params then
+                local MeasureFont = Library.Font
+                pcall(function()
+                    MeasureFont = Font.fromEnum(Library.Font)
+                end)
+
+                pcall(function()
+                    Params.Text = Data.Text
+                    Params.RichText = true
+                    Params.Font = MeasureFont
+                    Params.Size = TextLabel.TextSize
+                    Params.Width = Width
+
+                    local Bounds = TextService:GetTextBoundsAsync(Params)
+                    if typeof(Bounds) == "Vector2" then
+                        Y = math.ceil(Bounds.Y)
+                    end
+                end)
+            end
+
+            if Y <= 0 then
+                local _, FallbackY = Library:GetTextBounds(Data.Text, Library.Font, TextLabel.TextSize, Vector2.new(Width, 10000))
+                Y = FallbackY
+            end
+
             if Y <= 0 then return end
 
-            TextLabel.Size = UDim2.new(1, -4, 0, Y)
+            TextLabel.Size = UDim2.new(1, -4, 0, Y + 4)
         end
 
         if Data.DoesWrap then
