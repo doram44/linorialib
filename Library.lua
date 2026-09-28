@@ -646,28 +646,46 @@ function Library:AddDraggableLabel(Info)
     local Outer = Library:Create("Frame", {
         Name = "DraggableLabel";
         Position = Position;
-        Size = UDim2.fromOffset(200, TextSize + 6);
+        Size = UDim2.fromOffset(200, TextSize + 8);
         BackgroundTransparency = 1;
+        BorderColor3 = Library.AccentColor;
+        BorderSizePixel = 1;
         Active = true;
         Visible = Visible;
         ZIndex = ZIndex;
         Parent = ScreenGui;
     })
 
-    local TextLabel = Library:CreateLabel({
-        Position = UDim2.new(0, 0, 0, 0);
-        Size = UDim2.new(1, 0, 1, 0);
-        BackgroundTransparency = 1;
-        Text = Text;
-        TextSize = TextSize;
-        RichText = false;
+    local Inner = Library:Create("Frame", {
+        BackgroundColor3 = Library.MainColor;
+        BorderSizePixel = 0;
+        Position = UDim2.new(0, 1, 0, 1);
+        Size = UDim2.new(1, -2, 1, -2);
         ZIndex = ZIndex + 1;
         Parent = Outer;
     })
 
+    Library:AddToRegistry(Outer, {
+        BorderColor3 = "AccentColor";
+    }, true)
+    Library:AddToRegistry(Inner, {
+        BackgroundColor3 = "MainColor";
+    }, true)
+
+    local TextLabel = Library:CreateLabel({
+        Position = UDim2.new(0, 6, 0, 3);
+        Size = UDim2.new(1, -12, 1, -6);
+        BackgroundTransparency = 1;
+        Text = Text;
+        TextSize = TextSize;
+        RichText = false;
+        ZIndex = ZIndex + 2;
+        Parent = Inner;
+    })
+
     local function Refresh()
         local X, Y = Library:GetTextBounds(TextLabel.Text, Library.Font, TextLabel.TextSize, 10000)
-        Outer.Size = UDim2.fromOffset(math.ceil(X) + 4, math.ceil(Y) + 4)
+        Outer.Size = UDim2.fromOffset(math.ceil(X) + 16, math.ceil(Y) + 10)
     end
 
     Library:MakeDraggable(Outer, 9999, false)
@@ -3511,7 +3529,9 @@ do
             local Width = TextLabel.AbsoluteSize.X
             if Width <= 0 then return end
 
-            local _, Y = Library:GetTextBounds(Data.Text, Library.Font, TextLabel.TextSize * DPIScale, Vector2.new(Width, math.huge))
+            local _, Y = Library:GetTextBounds(Data.Text, Library.Font, TextLabel.TextSize, Vector2.new(Width, 10000))
+            if Y <= 0 then return end
+
             TextLabel.Size = UDim2.new(1, -4, 0, Y)
         end
 
