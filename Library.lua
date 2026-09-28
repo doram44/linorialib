@@ -3475,21 +3475,21 @@ do
     function BaseGroupboxFuncs:AddLabel(...)
         local Data = {}
 
-        if select(2, ...) ~= nil and typeof(select(2, ...)) == "table" then
-            if select(1, ...) ~= nil then
-                assert(typeof(select(1, ...)) == "string", "Expected string for Idx, got " .. typeof(select(1, ...)))
-            end
+        local First = select(1, ...)
+        local Second = select(2, ...)
+
+        if typeof(First) == "table" or typeof(Second) == "table" then
             
-            local Params = select(2, ...)
+            local Params = typeof(First) == "table" and First or Second
 
             Data.Text = Params.Text or ""
             Data.DoesWrap = Params.DoesWrap or false
             Data.Size = Params.Size or 14
             Data.Visible = if typeof(Params.Visible) == "boolean" then Params.Visible else true
-            Data.Idx = select(1, ...)
+            Data.Idx = typeof(Second) == "table" and First or nil
         else
-            Data.Text = select(1, ...) or ""
-            Data.DoesWrap = select(2, ...) or false
+            Data.Text = First or ""
+            Data.DoesWrap = Second or false
             Data.Size = 14
             Data.Visible = true
             Data.Idx = select(3, ...) or nil
