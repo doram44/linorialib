@@ -633,6 +633,72 @@ function Library:MakeDraggable(Instance, Cutoff, IsMainWindow)
     end
 end
 
+--// Draggable Label \\
+function Library:AddDraggableLabel(Info)
+    local IsTable = typeof(Info) == "table"
+
+    local Text = if IsTable then Info.Text or "" else (Info or "")
+    local TextSize = if IsTable and Info.TextSize then Info.TextSize or 14 else 14
+    local Position = if IsTable and Info.Position then Info.Position else UDim2.new(0, 100, 0, -50)
+    local Visible = if IsTable and typeof(Info.Visible) == "boolean" then Info.Visible else true
+    local ZIndex = if IsTable and Info.ZIndex then Info.ZIndex or 200 else 200
+
+    local Outer = Library:Create("Frame", {
+        Name = "DraggableLabel";
+        Position = Position;
+        Size = UDim2.fromOffset(200, TextSize + 6);
+        BackgroundTransparency = 1;
+        Active = true;
+        Visible = Visible;
+        ZIndex = ZIndex;
+        Parent = ScreenGui;
+    })
+
+    local TextLabel = Library:CreateLabel({
+        Position = UDim2.new(0, 0, 0, 0);
+        Size = UDim2.new(1, 0, 1, 0);
+        BackgroundTransparency = 1;
+        Text = Text;
+        TextSize = TextSize;
+        RichText = false;
+        ZIndex = ZIndex + 1;
+        Parent = Outer;
+    })
+
+    local function Refresh()
+        local X, Y = Library:GetTextBounds(TextLabel.Text, Library.Font, TextLabel.TextSize, 10000)
+        Outer.Size = UDim2.fromOffset(math.ceil(X) + 4, math.ceil(Y) + 4)
+    end
+
+    Library:MakeDraggable(Outer, 9999, false)
+    Refresh()
+
+    local DraggableLabel = {
+        Label = Outer;
+        TextLabel = TextLabel;
+    }
+
+    function DraggableLabel:SetText(NewText)
+        TextLabel.Text = NewText
+        Refresh()
+    end
+
+    function DraggableLabel:SetTextSize(NewSize)
+        TextLabel.TextSize = NewSize
+        Refresh()
+    end
+
+    function DraggableLabel:SetVisible(NewVisible)
+        Outer.Visible = NewVisible
+    end
+
+    function DraggableLabel:Destroy()
+        Outer:Destroy()
+    end
+
+    return DraggableLabel
+end
+
 function Library:MakeDraggableUsingParent(Instance, Parent, Cutoff, IsMainWindow)
     Instance.Active = true
 
@@ -3400,17 +3466,25 @@ do
 
             Data.Text = Params.Text or ""
             Data.DoesWrap = Params.DoesWrap or false
+            Data.Size = Params.Size or 14
+            Data.Visible = if typeof(Params.Visible) == "boolean" then Params.Visible else true
             Data.Idx = select(1, ...)
         else
             Data.Text = select(1, ...) or ""
             Data.DoesWrap = select(2, ...) or false
+            Data.Size = 14
+            Data.Visible = true
             Data.Idx = select(3, ...) or nil
         end
 
         Data.OriginalText = Data.Text
         
         local Label = {
-            Type = "Label"
+            Type = "Label",
+            Text = Data.Text,
+            DoesWrap = Data.DoesWrap,
+            Size = Data.Size,
+            Visible = Data.Visible,
         }
 
         -- local Blank = nil
@@ -3419,18 +3493,41 @@ do
 
         local TextLabel = Library:CreateLabel({
             Size = UDim2.new(1, -4, 0, 15);
-            TextSize = 14;
+            TextSize = Data.Size;
             Text = Data.Text;
             TextWrapped = Data.DoesWrap or false,
             TextXAlignment = Enum.TextXAlignment.Left;
             ZIndex = 5;
+            Visible = Data.Visible;
             Parent = Container;
             RichText = true;
         })
 
-        if Data.DoesWrap then
-            local Y = select(2, Library:GetTextBounds(Data.Text, Library.Font, 14 * DPIScale, Vector2.new(TextLabel.AbsoluteSize.X, math.huge)))
+        function Label:Display()
+            if not Data.DoesWrap then
+                return
+            end
+
+            local Width = TextLabel.AbsoluteSize.X
+            if Width <= 0 then return end
+
+            local _, Y = Library:GetTextBounds(Data.Text, Library.Font, TextLabel.TextSize * DPIScale, Vector2.new(Width, math.huge))
             TextLabel.Size = UDim2.new(1, -4, 0, Y)
+        end
+
+        if Data.DoesWrap then
+            Label:Display()
+
+            local LastSize = TextLabel.AbsoluteSize
+            TextLabel:GetPropertyChangedSignal("AbsoluteSize"):Connect(function()
+                if TextLabel.AbsoluteSize == LastSize then
+                    return
+                end
+
+                LastSize = TextLabel.AbsoluteSize
+                Label:Display()
+                Groupbox:Resize()
+            end)
         else
             Library:Create("UIListLayout", {
                 Padding = UDim.new(0, 4 * DPIScale);
@@ -3444,14 +3541,16 @@ do
         Label.TextLabel = TextLabel
         Label.Container = Container
 
+        function Label:SetVisible(Visible)
+            Label.Visible = Visible
+            TextLabel.Visible = Visible
+            Groupbox:Resize()
+        end
+
         function Label:SetText(Text)
+            Data.Text = Text
             TextLabel.Text = Text
-
-            if Data.DoesWrap then
-                local Y = select(2, Library:GetTextBounds(Text, Library.Font, 14 * DPIScale, Vector2.new(TextLabel.AbsoluteSize.X, math.huge)))
-                TextLabel.Size = UDim2.new(1, -4, 0, Y)
-            end
-
+            Label:Display()
             Groupbox:Resize()
         end
 
@@ -7539,6 +7638,14 @@ end
             TabFrame.Visible = false
         end
         Tab.Hide = Tab.HideTab
+
+        function Tab:SetVisible(Visible: boolean)
+            TabButton.Visible = Visible
+
+            if not Visible and Library.ActiveTab == Name then
+                Tab:Hide()
+            end
+        end
 
         function Tab:SetLayoutOrder(Position)
             TabButton.LayoutOrder = Position
