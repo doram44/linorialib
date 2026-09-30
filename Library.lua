@@ -559,80 +559,49 @@ function Library:CreateLabel(Properties, IsHud)
     return Library:Create(_Instance, Properties)
 end
 
-local ActiveDrag = nil
-local DragWired = false
-
-local function WireDragInput()
-    if DragWired then
-        return
-    end
-
-    DragWired = true
-
-    InputService.InputChanged:Connect(function(Input)
-        if not ActiveDrag then
-            return
-        end
-
-        if Input.UserInputType ~= Enum.UserInputType.MouseMovement then
-            return
-        end
-
-        local Target = ActiveDrag.Target
-        Target.Position = UDim2.new(
-            0,
-            Mouse.X - ActiveDrag.OffX + (Target.Size.X.Offset * Target.AnchorPoint.X),
-            0,
-            Mouse.Y - ActiveDrag.OffY + (Target.Size.Y.Offset * Target.AnchorPoint.Y)
-        )
-    end)
-
-    InputService.InputEnded:Connect(function(Input)
-        if not ActiveDrag then
-            return
-        end
-
-        if Input.UserInputType == Enum.UserInputType.MouseButton1 then
-            ActiveDrag = nil
-        end
-    end)
-end
-
-local function BeginDrag(Target, Cutoff, IsMainWindow)
-    if ActiveDrag then
-        return
-    end
-
-    if IsMainWindow == true and Library.CantDragForced == true then
-        return
-    end
-
-    local ObjPos = Vector2.new(
-        Mouse.X - Target.AbsolutePosition.X,
-        Mouse.Y - Target.AbsolutePosition.Y
-    )
-
-    if ObjPos.Y > (Cutoff or 40) then
-        return
-    end
-
-    ActiveDrag = { Target = Target, OffX = ObjPos.X, OffY = ObjPos.Y }
-end
-
 function Library:MakeDraggable(Instance, Cutoff, IsMainWindow)
     Instance.Active = true
 
     if Library.IsMobile == false then
-        WireDragInput()
+        local Dragging = false
 
         Instance.InputBegan:Connect(function(Input)
-            if Input.UserInputType ~= Enum.UserInputType.MouseButton1 then
-                return
+            if Input.UserInputType == Enum.UserInputType.MouseButton1 then
+                if IsMainWindow == true and Library.CantDragForced == true then
+                    return
+                end
+
+                if Dragging then
+                    return
+                end
+
+                local ObjPos = Vector2.new(
+                    Mouse.X - Instance.AbsolutePosition.X,
+                    Mouse.Y - Instance.AbsolutePosition.Y
+                )
+
+                if ObjPos.Y > (Cutoff or 40) then
+                    return
+                end
+
+                Dragging = true
+
+                task.spawn(function()
+                    while InputService:IsMouseButtonPressed(Enum.UserInputType.MouseButton1) do
+                        Instance.Position = UDim2.new(
+                            0,
+                            Mouse.X - ObjPos.X + (Instance.Size.X.Offset * Instance.AnchorPoint.X),
+                            0,
+                            Mouse.Y - ObjPos.Y + (Instance.Size.Y.Offset * Instance.AnchorPoint.Y)
+                        )
+
+                        RunService.RenderStepped:Wait()
+                    end
+
+                    Dragging = false
+                end)
             end
-
-            BeginDrag(Instance, Cutoff, IsMainWindow)
         end)
-
     else
         local Dragging, DraggingInput, DraggingStart, StartPosition
 
@@ -681,7 +650,6 @@ function Library:MakeDraggable(Instance, Cutoff, IsMainWindow)
     end
 end
 
---// Draggable Label \\
 function Library:AddDraggableLabel(Info)
     local IsTable = typeof(Info) == "table"
 
@@ -780,16 +748,45 @@ function Library:MakeDraggableUsingParent(Instance, Parent, Cutoff, IsMainWindow
     Instance.Active = true
 
     if Library.IsMobile == false then
-        WireDragInput()
+        local Dragging = false
 
         Instance.InputBegan:Connect(function(Input)
-            if Input.UserInputType ~= Enum.UserInputType.MouseButton1 then
-                return
+            if Input.UserInputType == Enum.UserInputType.MouseButton1 then
+                if IsMainWindow == true and Library.CantDragForced == true then
+                    return
+                end
+
+                if Dragging then
+                    return
+                end
+
+                local ObjPos = Vector2.new(
+                    Mouse.X - Parent.AbsolutePosition.X,
+                    Mouse.Y - Parent.AbsolutePosition.Y
+                )
+
+                if ObjPos.Y > (Cutoff or 40) then
+                    return
+                end
+
+                Dragging = true
+
+                task.spawn(function()
+                    while InputService:IsMouseButtonPressed(Enum.UserInputType.MouseButton1) do
+                        Parent.Position = UDim2.new(
+                            0,
+                            Mouse.X - ObjPos.X + (Parent.Size.X.Offset * Parent.AnchorPoint.X),
+                            0,
+                            Mouse.Y - ObjPos.Y + (Parent.Size.Y.Offset * Parent.AnchorPoint.Y)
+                        )
+
+                        RunService.RenderStepped:Wait()
+                    end
+
+                    Dragging = false
+                end)
             end
-
-            BeginDrag(Parent, Cutoff, IsMainWindow)
         end)
-
     else  
         Library:MakeDraggable(Parent, Cutoff, IsMainWindow)
     end
@@ -889,6 +886,8 @@ function Library:AddToolTip(InfoStr, DisabledInfoStr, HoverInstance)
     DisabledInfoStr = typeof(DisabledInfoStr) == "string" and DisabledInfoStr or nil
 
     if Library.Translate then
+        Library.TranslateTooltipCalls = (Library.TranslateTooltipCalls or 0) + 1
+
         if InfoStr then local T1 = Library.Translate(InfoStr) if T1 then InfoStr = T1 end end
         if DisabledInfoStr then local T2 = Library.Translate(DisabledInfoStr) if T2 then DisabledInfoStr = T2 end end
     end
@@ -1559,6 +1558,14 @@ do
             end
 
             function KeybindsToggle:SetText(Text)
+                if Library.Translate then
+                    local Translated = Library.Translate(Text)
+
+                    if Translated then
+                        Text = Translated
+                    end
+                end
+
                 KeybindsToggleLabel.Text = Text
             end
 
@@ -6520,12 +6527,15 @@ do
         local Info = select(1, ...)
 
         if typeof(Info) == "table" then
+            local RawTitle, RawDescription = Info.Title, Info.Description
+
             if Library.Translate then
-                if typeof(Info.Title) == "string" then local N1 = Library.Translate(Info.Title) if N1 then Info.Title = N1 end end
-                if typeof(Info.Description) == "string" then local N2 = Library.Translate(Info.Description) if N2 then Info.Description = N2 end end
+                if typeof(RawTitle) == "string" then local N1 = Library.Translate(RawTitle) if N1 then RawTitle = N1 end end
+                if typeof(RawDescription) == "string" then local N2 = Library.Translate(RawDescription) if N2 then RawDescription = N2 end end
             end
-            Data.Title = Info.Title and tostring(Info.Title) or ""
-            Data.Description = tostring(Info.Description)
+
+            Data.Title = RawTitle and tostring(RawTitle) or ""
+            Data.Description = tostring(RawDescription)
             Data.Time = Info.Time or 5
             Data.SoundId = Info.SoundId
             Data.Steps = Info.Steps
@@ -6533,8 +6543,15 @@ do
             Data.Icon = Info.Icon
             Data.IconColor = Info.IconColor
         else
+            local RawDescription = tostring(Info)
+
+            if Library.Translate then
+                local N3 = Library.Translate(RawDescription)
+                if N3 then RawDescription = N3 end
+            end
+
             Data.Title = ""
-            Data.Description = tostring(Info)
+            Data.Description = RawDescription
             Data.Time = select(2, ...) or 5
             Data.SoundId = select(3, ...)
         end
@@ -7601,7 +7618,7 @@ do
             BackgroundTransparency = 1;
             BorderSizePixel = 0;
             Position = UDim2.new(0, 7, 0, 7);
-            Size = UDim2.new(0.5, -10, 1, -14);
+            Size = UDim2.new(0.5, -14, 1, -14);
             CanvasSize = UDim2.new(0, 0, 0, 0);
             BottomImage = "";
             TopImage = "";
@@ -7613,8 +7630,8 @@ do
         local RightSide = Library:Create("ScrollingFrame", {
             BackgroundTransparency = 1;
             BorderSizePixel = 0;
-            Position = UDim2.new(0.5, 5, 0, 7);
-            Size = UDim2.new(0.5, -10, 1, -14);
+            Position = UDim2.new(0.5, 7, 0, 7);
+            Size = UDim2.new(0.5, -14, 1, -14);
             CanvasSize = UDim2.new(0, 0, 0, 0);
             BottomImage = "";
             TopImage = "";
@@ -7855,21 +7872,23 @@ end
                 BackgroundColor3 = "AccentColor";
             })
 
-            -- local GroupboxLabel = 
-            Library:CreateLabel({
-                Size = UDim2.new(1, 0, 0, 18);
+            local GroupboxHeaderHeight = 18
+
+            local GroupboxLabel = Library:CreateLabel({
+                Size = UDim2.new(1, -8, 0, GroupboxHeaderHeight);
                 Position = UDim2.new(0, 4, 0, 2);
                 TextSize = 14;
                 Text = (Library.Translate and Info.Name) and Library.Translate(Info.Name) or Info.Name;
                 TextXAlignment = Enum.TextXAlignment.Left;
+                TextWrapped = true;
                 ZIndex = 5;
                 Parent = BoxInner;
             })
 
             local Container = Library:Create("Frame", {
                 BackgroundTransparency = 1;
-                Position = UDim2.new(0, 4, 0, 20);
-                Size = UDim2.new(1, -4, 1, -20);
+                Position = UDim2.new(0, 4, 0, GroupboxHeaderHeight + 2);
+                Size = UDim2.new(1, -4, 1, -(GroupboxHeaderHeight + 2));
                 ZIndex = 1;
                 Parent = BoxInner;
             })
@@ -7893,8 +7912,24 @@ end
                     end
                 end
 
-                BoxOuter.Size = UDim2.new(1, 0, 0, (20 * DPIScale + Size) + 2 + 2)
+                BoxOuter.Size = UDim2.new(1, 0, 0, (GroupboxHeaderHeight + 2 + Size) + 2 + 2)
             end
+
+            local function UpdateGroupboxHeader()
+                local Height = math.max(18, GroupboxLabel.AbsoluteSize.Y)
+
+                if math.abs(Height - GroupboxHeaderHeight) < 0.5 then
+                    return
+                end
+
+                GroupboxHeaderHeight = Height
+                GroupboxLabel.Size = UDim2.new(1, -8, 0, Height)
+                Container.Position = UDim2.new(0, 4, 0, Height + 2)
+                Container.Size = UDim2.new(1, -4, 1, -(Height + 2))
+                Groupbox:Resize()
+            end
+
+            GroupboxLabel:GetPropertyChangedSignal("AbsoluteSize"):Connect(UpdateGroupboxHeader)
 
             function Groupbox:SetVisible(Visible: boolean)
                 Groupbox.Visible = Visible
@@ -7915,6 +7950,10 @@ end
 
             Groupbox.Container = Container
             setmetatable(Groupbox, BaseGroupbox)
+
+            -- after Groupbox.Container is set, because UpdateGroupboxHeader
+            -- calls Groupbox:Resize, which walks Groupbox.Container
+            UpdateGroupboxHeader()
 
             Groupbox:AddBlank(3)
 
