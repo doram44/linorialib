@@ -1233,7 +1233,7 @@ local Templates = { -- TO-DO: do it for missing elements.
         Position = UDim2.fromOffset(175, 50),
         Size = UDim2.fromOffset(0, 0),
         AnchorPoint = Vector2.zero,
-        TabPadding = 1,
+        TabPadding = 5,
         MenuFadeTime = 0.2,
         NotifySide = "Left",
         ShowCustomCursor = true,
@@ -6728,7 +6728,7 @@ function Library:CreateWindow(...)
     Library.NotifySide = WindowInfo.NotifySide
     Library.ShowCustomCursor = WindowInfo.ShowCustomCursor
 
-    if WindowInfo.TabPadding <= 0 then WindowInfo.TabPadding = 1 end
+    if WindowInfo.TabPadding < 5 then WindowInfo.TabPadding = 5 end
     if WindowInfo.Center then WindowInfo.Position = UDim2.new(0.5, -WindowInfo.Size.X.Offset / 2, 0.5, -WindowInfo.Size.Y.Offset / 2) end
 
     local Window = {
@@ -7431,6 +7431,13 @@ function Library:CreateWindow(...)
             ZIndex = 1;
             Parent = TabButton;
         })
+
+        Tab.Button = TabButton
+        Tab.Label = TabButtonLabel
+        TabButtonLabel:GetPropertyChangedSignal("Text"):Connect(function()
+            local TextWidth = Library:GetTextBounds(TabButtonLabel.Text, Library.Font, 16)
+            TabButton.Size = UDim2.new(0, TextWidth + 8 + 4, 0.85, 0)
+        end)
 
         local Blocker = Library:Create("Frame", {
             BackgroundColor3 = Library.MainColor;
