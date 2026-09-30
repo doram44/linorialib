@@ -522,6 +522,11 @@ function Library:Create(Class, Properties)
         end
     end
 
+    if typeof(_Instance) == "Instance" and _Instance:IsA("GuiObject") then
+        Library.TranslateTargets = Library.TranslateTargets or {}
+        table.insert(Library.TranslateTargets, _Instance)
+    end
+
     return _Instance
 end
 
@@ -856,6 +861,11 @@ end
 function Library:AddToolTip(InfoStr, DisabledInfoStr, HoverInstance)
     InfoStr = typeof(InfoStr) == "string" and InfoStr or nil
     DisabledInfoStr = typeof(DisabledInfoStr) == "string" and DisabledInfoStr or nil
+
+    if Library.Translate then
+        if InfoStr then local T1 = Library.Translate(InfoStr) if T1 then InfoStr = T1 end end
+        if DisabledInfoStr then local T2 = Library.Translate(DisabledInfoStr) if T2 then DisabledInfoStr = T2 end end
+    end
 
     local Tooltip = Library:Create("Frame", {
         BackgroundColor3 = Library.MainColor;
@@ -3507,6 +3517,9 @@ do
         end
 
         Data.OriginalText = Data.Text
+        if Library.Translate and typeof(Data.Text) == "string" then
+            local T3 = Library.Translate(Data.Text) if T3 then Data.Text = T3 end
+        end
         
         local Label = {
             Type = "Label",
@@ -3641,6 +3654,9 @@ do
             Func = select(2, ...)
         }
         Button.OriginalText = Button.Text
+        if Library.Translate and typeof(Button.Text) == "string" then
+            local B1 = Library.Translate(Button.Text) if B1 then Button.Text = B1 end
+        end
         Button.Func = Button.Func or Button.Callback
         assert(typeof(Button.Func) == "function", "AddButton: `Func` callback is missing.")
 
@@ -6455,6 +6471,10 @@ do
         local Info = select(1, ...)
 
         if typeof(Info) == "table" then
+            if Library.Translate then
+                if typeof(Info.Title) == "string" then local N1 = Library.Translate(Info.Title) if N1 then Info.Title = N1 end end
+                if typeof(Info.Description) == "string" then local N2 = Library.Translate(Info.Description) if N2 then Info.Description = N2 end end
+            end
             Data.Title = Info.Title and tostring(Info.Title) or ""
             Data.Description = tostring(Info.Description)
             Data.Time = Info.Time or 5
@@ -7784,7 +7804,7 @@ end
                 Size = UDim2.new(1, 0, 0, 18);
                 Position = UDim2.new(0, 4, 0, 2);
                 TextSize = 14;
-                Text = Info.Name;
+                Text = (Library.Translate and Info.Name) and Library.Translate(Info.Name) or Info.Name;
                 TextXAlignment = Enum.TextXAlignment.Left;
                 ZIndex = 5;
                 Parent = BoxInner;
