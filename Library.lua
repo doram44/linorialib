@@ -559,49 +559,80 @@ function Library:CreateLabel(Properties, IsHud)
     return Library:Create(_Instance, Properties)
 end
 
+local ActiveDrag = nil
+local DragWired = false
+
+local function WireDragInput()
+    if DragWired then
+        return
+    end
+
+    DragWired = true
+
+    InputService.InputChanged:Connect(function(Input)
+        if not ActiveDrag then
+            return
+        end
+
+        if Input.UserInputType ~= Enum.UserInputType.MouseMovement then
+            return
+        end
+
+        local Target = ActiveDrag.Target
+        Target.Position = UDim2.new(
+            0,
+            Mouse.X - ActiveDrag.OffX + (Target.Size.X.Offset * Target.AnchorPoint.X),
+            0,
+            Mouse.Y - ActiveDrag.OffY + (Target.Size.Y.Offset * Target.AnchorPoint.Y)
+        )
+    end)
+
+    InputService.InputEnded:Connect(function(Input)
+        if not ActiveDrag then
+            return
+        end
+
+        if Input.UserInputType == Enum.UserInputType.MouseButton1 then
+            ActiveDrag = nil
+        end
+    end)
+end
+
+local function BeginDrag(Target, Cutoff, IsMainWindow)
+    if ActiveDrag then
+        return
+    end
+
+    if IsMainWindow == true and Library.CantDragForced == true then
+        return
+    end
+
+    local ObjPos = Vector2.new(
+        Mouse.X - Target.AbsolutePosition.X,
+        Mouse.Y - Target.AbsolutePosition.Y
+    )
+
+    if ObjPos.Y > (Cutoff or 40) then
+        return
+    end
+
+    ActiveDrag = { Target = Target, OffX = ObjPos.X, OffY = ObjPos.Y }
+end
+
 function Library:MakeDraggable(Instance, Cutoff, IsMainWindow)
     Instance.Active = true
 
     if Library.IsMobile == false then
-        local Dragging = false
+        WireDragInput()
 
         Instance.InputBegan:Connect(function(Input)
-            if Input.UserInputType == Enum.UserInputType.MouseButton1 then
-                if IsMainWindow == true and Library.CantDragForced == true then
-                    return
-                end
-
-                if Dragging then
-                    return
-                end
-
-                local ObjPos = Vector2.new(
-                    Mouse.X - Instance.AbsolutePosition.X,
-                    Mouse.Y - Instance.AbsolutePosition.Y
-                )
-
-                if ObjPos.Y > (Cutoff or 40) then
-                    return
-                end
-
-                Dragging = true
-
-                task.spawn(function()
-                    while InputService:IsMouseButtonPressed(Enum.UserInputType.MouseButton1) do
-                        Instance.Position = UDim2.new(
-                            0,
-                            Mouse.X - ObjPos.X + (Instance.Size.X.Offset * Instance.AnchorPoint.X),
-                            0,
-                            Mouse.Y - ObjPos.Y + (Instance.Size.Y.Offset * Instance.AnchorPoint.Y)
-                        )
-
-                        RunService.RenderStepped:Wait()
-                    end
-
-                    Dragging = false
-                end)
+            if Input.UserInputType ~= Enum.UserInputType.MouseButton1 then
+                return
             end
+
+            BeginDrag(Instance, Cutoff, IsMainWindow)
         end)
+
     else
         local Dragging, DraggingInput, DraggingStart, StartPosition
 
@@ -650,6 +681,7 @@ function Library:MakeDraggable(Instance, Cutoff, IsMainWindow)
     end
 end
 
+--// Draggable Label \\
 function Library:AddDraggableLabel(Info)
     local IsTable = typeof(Info) == "table"
 
@@ -748,45 +780,16 @@ function Library:MakeDraggableUsingParent(Instance, Parent, Cutoff, IsMainWindow
     Instance.Active = true
 
     if Library.IsMobile == false then
-        local Dragging = false
+        WireDragInput()
 
         Instance.InputBegan:Connect(function(Input)
-            if Input.UserInputType == Enum.UserInputType.MouseButton1 then
-                if IsMainWindow == true and Library.CantDragForced == true then
-                    return
-                end
-
-                if Dragging then
-                    return
-                end
-
-                local ObjPos = Vector2.new(
-                    Mouse.X - Parent.AbsolutePosition.X,
-                    Mouse.Y - Parent.AbsolutePosition.Y
-                )
-
-                if ObjPos.Y > (Cutoff or 40) then
-                    return
-                end
-
-                Dragging = true
-
-                task.spawn(function()
-                    while InputService:IsMouseButtonPressed(Enum.UserInputType.MouseButton1) do
-                        Parent.Position = UDim2.new(
-                            0,
-                            Mouse.X - ObjPos.X + (Parent.Size.X.Offset * Parent.AnchorPoint.X),
-                            0,
-                            Mouse.Y - ObjPos.Y + (Parent.Size.Y.Offset * Parent.AnchorPoint.Y)
-                        )
-
-                        RunService.RenderStepped:Wait()
-                    end
-
-                    Dragging = false
-                end)
+            if Input.UserInputType ~= Enum.UserInputType.MouseButton1 then
+                return
             end
+
+            BeginDrag(Parent, Cutoff, IsMainWindow)
         end)
+
     else  
         Library:MakeDraggable(Parent, Cutoff, IsMainWindow)
     end
@@ -886,8 +889,6 @@ function Library:AddToolTip(InfoStr, DisabledInfoStr, HoverInstance)
     DisabledInfoStr = typeof(DisabledInfoStr) == "string" and DisabledInfoStr or nil
 
     if Library.Translate then
-        Library.TranslateTooltipCalls = (Library.TranslateTooltipCalls or 0) + 1
-
         if InfoStr then local T1 = Library.Translate(InfoStr) if T1 then InfoStr = T1 end end
         if DisabledInfoStr then local T2 = Library.Translate(DisabledInfoStr) if T2 then DisabledInfoStr = T2 end end
     end
