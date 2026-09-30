@@ -559,37 +559,80 @@ function Library:CreateLabel(Properties, IsHud)
     return Library:Create(_Instance, Properties)
 end
 
+local ActiveDrag = nil
+local DragWired = false
+
+local function WireDragInput()
+    if DragWired then
+        return
+    end
+
+    DragWired = true
+
+    InputService.InputChanged:Connect(function(Input)
+        if not ActiveDrag then
+            return
+        end
+
+        if Input.UserInputType ~= Enum.UserInputType.MouseMovement then
+            return
+        end
+
+        local Target = ActiveDrag.Target
+        Target.Position = UDim2.new(
+            0,
+            Mouse.X - ActiveDrag.OffX + (Target.Size.X.Offset * Target.AnchorPoint.X),
+            0,
+            Mouse.Y - ActiveDrag.OffY + (Target.Size.Y.Offset * Target.AnchorPoint.Y)
+        )
+    end)
+
+    InputService.InputEnded:Connect(function(Input)
+        if not ActiveDrag then
+            return
+        end
+
+        if Input.UserInputType == Enum.UserInputType.MouseButton1 then
+            ActiveDrag = nil
+        end
+    end)
+end
+
+local function BeginDrag(Target, Cutoff, IsMainWindow)
+    if ActiveDrag then
+        return
+    end
+
+    if IsMainWindow == true and Library.CantDragForced == true then
+        return
+    end
+
+    local ObjPos = Vector2.new(
+        Mouse.X - Target.AbsolutePosition.X,
+        Mouse.Y - Target.AbsolutePosition.Y
+    )
+
+    if ObjPos.Y > (Cutoff or 40) then
+        return
+    end
+
+    ActiveDrag = { Target = Target, OffX = ObjPos.X, OffY = ObjPos.Y }
+end
+
 function Library:MakeDraggable(Instance, Cutoff, IsMainWindow)
     Instance.Active = true
 
     if Library.IsMobile == false then
+        WireDragInput()
+
         Instance.InputBegan:Connect(function(Input)
-            if Input.UserInputType == Enum.UserInputType.MouseButton1 then
-                if IsMainWindow == true and Library.CantDragForced == true then
-                    return
-                end
-           
-                local ObjPos = Vector2.new(
-                    Mouse.X - Instance.AbsolutePosition.X,
-                    Mouse.Y - Instance.AbsolutePosition.Y
-                )
-
-                if ObjPos.Y > (Cutoff or 40) then
-                    return
-                end
-
-                while InputService:IsMouseButtonPressed(Enum.UserInputType.MouseButton1) do
-                    Instance.Position = UDim2.new(
-                        0,
-                        Mouse.X - ObjPos.X + (Instance.Size.X.Offset * Instance.AnchorPoint.X),
-                        0,
-                        Mouse.Y - ObjPos.Y + (Instance.Size.Y.Offset * Instance.AnchorPoint.Y)
-                    )
-
-                    RunService.RenderStepped:Wait()
-                end
+            if Input.UserInputType ~= Enum.UserInputType.MouseButton1 then
+                return
             end
+
+            BeginDrag(Instance, Cutoff, IsMainWindow)
         end)
+
     else
         local Dragging, DraggingInput, DraggingStart, StartPosition
 
@@ -737,33 +780,16 @@ function Library:MakeDraggableUsingParent(Instance, Parent, Cutoff, IsMainWindow
     Instance.Active = true
 
     if Library.IsMobile == false then
+        WireDragInput()
+
         Instance.InputBegan:Connect(function(Input)
-            if Input.UserInputType == Enum.UserInputType.MouseButton1 then
-                if IsMainWindow == true and Library.CantDragForced == true then
-                    return
-                end
-  
-                local ObjPos = Vector2.new(
-                    Mouse.X - Parent.AbsolutePosition.X,
-                    Mouse.Y - Parent.AbsolutePosition.Y
-                )
-
-                if ObjPos.Y > (Cutoff or 40) then
-                    return
-                end
-
-                while InputService:IsMouseButtonPressed(Enum.UserInputType.MouseButton1) do
-                    Parent.Position = UDim2.new(
-                        0,
-                        Mouse.X - ObjPos.X + (Parent.Size.X.Offset * Parent.AnchorPoint.X),
-                        0,
-                        Mouse.Y - ObjPos.Y + (Parent.Size.Y.Offset * Parent.AnchorPoint.Y)
-                    )
-
-                    RunService.RenderStepped:Wait()
-                end
+            if Input.UserInputType ~= Enum.UserInputType.MouseButton1 then
+                return
             end
+
+            BeginDrag(Parent, Cutoff, IsMainWindow)
         end)
+
     else  
         Library:MakeDraggable(Parent, Cutoff, IsMainWindow)
     end
@@ -5710,7 +5736,8 @@ do
             RectOffset = Info.RectOffset,
             RectSize = Info.RectSize,
             Height = if typeof(Info.Height) == "number" and Info.Height > 0 then Info.Height else 200,
-            ScaleType = Info.ScaleType,
+            Width = if typeof(Info.Width) == "number" and Info.Width > 0 then Info.Width else nil,
+            ScaleType = Info.ScaleType or Enum.ScaleType.Fit,
             Transparency = Info.Transparency,
             BackgroundTransparency = tonumber(Info.BackgroundTransparency) or 0,
 
@@ -5728,6 +5755,12 @@ do
             Visible = Image.Visible,
             Parent = Container,
         })
+
+        if Image.Width then
+            Holder.AnchorPoint = Vector2.new(0.5, 0)
+            Holder.Position = UDim2.new(0.5, 0, 0, 0)
+            Holder.Size = UDim2.new(0, Image.Width, 0, Image.Height)
+        end
 
         local Box = Library:Create("Frame", {
             BackgroundColor3 = Library.MainColor,
@@ -5779,7 +5812,23 @@ do
             assert(Height > 0, "Height must be greater than 0.")
             Image.Height = Height
 
-            Holder.Size = UDim2.new(1, -4, 0, Image.Height)
+            if Image.Width then
+                Holder.Size = UDim2.new(0, Image.Width, 0, Image.Height)
+            else
+                Holder.Size = UDim2.new(1, -4, 0, Image.Height)
+            end
+
+            Groupbox:Resize()
+        end
+
+        function Image:SetWidth(Width: number)
+            assert(Width > 0, "Width must be greater than 0.")
+            Image.Width = Width
+
+            Holder.AnchorPoint = Vector2.new(0.5, 0)
+            Holder.Position = UDim2.new(0.5, 0, 0, 0)
+            Holder.Size = UDim2.new(0, Width, 0, Image.Height)
+
             Groupbox:Resize()
         end
 
