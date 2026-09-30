@@ -560,7 +560,39 @@ function Library:CreateLabel(Properties, IsHud)
 end
 
 local ActiveDrag = nil
+local DragMoved = false
 local DragWired = false
+
+local function CancelDrag()
+    ActiveDrag = nil
+    DragMoved = false
+end
+
+local function ApplyDrag()
+    local D = ActiveDrag
+    if not D or not DragMoved then
+        return
+    end
+
+    DragMoved = false
+
+    if not InputService:IsMouseButtonPressed(Enum.UserInputType.MouseButton1) then
+        CancelDrag()
+        return
+    end
+
+    local Target = D.Target
+    local X = Mouse.X - D.OffX + (Target.Size.X.Offset * Target.AnchorPoint.X)
+    local Y = Mouse.Y - D.OffY + (Target.Size.Y.Offset * Target.AnchorPoint.Y)
+
+    if X == D.LastX and Y == D.LastY then
+        return
+    end
+
+    D.LastX = X
+    D.LastY = Y
+    Target.Position = UDim2.new(0, X, 0, Y)
+end
 
 local function WireDragInput()
     if DragWired then
@@ -569,22 +601,16 @@ local function WireDragInput()
 
     DragWired = true
 
+    RunService.RenderStepped:Connect(ApplyDrag)
+
     InputService.InputChanged:Connect(function(Input)
         if not ActiveDrag then
             return
         end
 
-        if Input.UserInputType ~= Enum.UserInputType.MouseMovement then
-            return
+        if Input.UserInputType == Enum.UserInputType.MouseMovement then
+            DragMoved = true
         end
-
-        local Target = ActiveDrag.Target
-        Target.Position = UDim2.new(
-            0,
-            Mouse.X - ActiveDrag.OffX + (Target.Size.X.Offset * Target.AnchorPoint.X),
-            0,
-            Mouse.Y - ActiveDrag.OffY + (Target.Size.Y.Offset * Target.AnchorPoint.Y)
-        )
     end)
 
     InputService.InputEnded:Connect(function(Input)
@@ -593,9 +619,15 @@ local function WireDragInput()
         end
 
         if Input.UserInputType == Enum.UserInputType.MouseButton1 then
-            ActiveDrag = nil
+            CancelDrag()
         end
     end)
+
+    if InputService.WindowFocusReleased then
+        InputService.WindowFocusReleased:Connect(function()
+            CancelDrag()
+        end)
+    end
 end
 
 local function BeginDrag(Target, Cutoff, IsMainWindow)
@@ -889,6 +921,8 @@ function Library:AddToolTip(InfoStr, DisabledInfoStr, HoverInstance)
     DisabledInfoStr = typeof(DisabledInfoStr) == "string" and DisabledInfoStr or nil
 
     if Library.Translate then
+        Library.TranslateTooltipCalls = (Library.TranslateTooltipCalls or 0) + 1
+
         if InfoStr then local T1 = Library.Translate(InfoStr) if T1 then InfoStr = T1 end end
         if DisabledInfoStr then local T2 = Library.Translate(DisabledInfoStr) if T2 then DisabledInfoStr = T2 end end
     end
