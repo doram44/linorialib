@@ -886,8 +886,6 @@ function Library:AddToolTip(InfoStr, DisabledInfoStr, HoverInstance)
     DisabledInfoStr = typeof(DisabledInfoStr) == "string" and DisabledInfoStr or nil
 
     if Library.Translate then
-        Library.TranslateTooltipCalls = (Library.TranslateTooltipCalls or 0) + 1
-
         if InfoStr then local T1 = Library.Translate(InfoStr) if T1 then InfoStr = T1 end end
         if DisabledInfoStr then local T2 = Library.Translate(DisabledInfoStr) if T2 then DisabledInfoStr = T2 end end
     end
@@ -3934,6 +3932,23 @@ do
 
             Button:UpdateColors()
         end
+
+        Button.TextLabel = Button.Label
+        Button.Value = false
+
+        function Button:SetValue(NewValue)
+            NewValue = not not NewValue
+
+            if NewValue == Button.Value then return end
+
+            Button.Value = NewValue
+
+            if NewValue then
+                Library:SafeCallback(Button.Func)
+            end
+        end
+
+        setmetatable(Button, BaseAddons)
 
         task.delay(0.1, Button.UpdateColors, Button)
         Blank = Groupbox:AddBlank(5, IsVisible)
@@ -7951,8 +7966,6 @@ end
             Groupbox.Container = Container
             setmetatable(Groupbox, BaseGroupbox)
 
-            -- after Groupbox.Container is set, because UpdateGroupboxHeader
-            -- calls Groupbox:Resize, which walks Groupbox.Container
             UpdateGroupboxHeader()
 
             Groupbox:AddBlank(3)
