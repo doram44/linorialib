@@ -1305,9 +1305,27 @@ do
             SyncToggleState = Info.SyncToggleState or false;
         }
 
+if not Info.Text and ParentObj.Text then
+            Info.Text = ParentObj.Text
+        end
+
+        if ParentObj.Type == "Button" then
+            KeyPicker.Mode = "Press"
+            KeyPicker.SyncToggleState = false
+            Info.Modes = { "Press" }
+            Info.Mode = "Press"
+
+            if Info.Callback == nil and Info.Clicked == nil then
+                KeyPicker.Clicked = function()
+                    Library:SafeCallback(ParentObj.Func)
+                end
+            end
+        end
+
         if KeyPicker.Mode == "Press" then
-            assert(ParentObj.Type == "Label", "KeyPicker with the mode \"Press\" can be only applied on Labels.")
-            
+            assert(ParentObj.Type == "Label" or ParentObj.Type == "Button",
+                "KeyPicker with the mode \"Press\" can be only applied on Labels or Buttons.")
+
             KeyPicker.SyncToggleState = false
             Info.Modes = { "Press" }
             Info.Mode = "Press"
@@ -3934,7 +3952,7 @@ do
         end
 
         Button.TextLabel = Button.Label
-        Button.Value = false
+        Button.Value = nil
 
         function Button:SetValue(NewValue)
             NewValue = not not NewValue
