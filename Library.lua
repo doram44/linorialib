@@ -3951,6 +3951,7 @@ do
             Button:UpdateColors()
         end
 
+        Button.Type = "Button"
         Button.TextLabel = Button.Label
         Button.Value = nil
 
