@@ -1758,6 +1758,13 @@ if not Info.Text and ParentObj.Text then
                 return
             end
 
+            if Info.VisibleWhen and not Info.VisibleWhen() then
+                if KeybindsToggle.Loaded then
+                    KeybindsToggle:SetVisibility(false)
+                end
+                return
+            end
+
             local State = KeyPicker:GetState()
             local ShowToggle = Library.ShowToggleFrameInKeybinds and KeyPicker.Mode == "Toggle"
 
