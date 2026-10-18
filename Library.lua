@@ -3295,7 +3295,7 @@ if not Info.Text and ParentObj.Text then
         local RelativeOffset = 0
 
         for _, Element in next, Container:GetChildren() do
-            if not Element:IsA("UIListLayout") then
+            if Element:IsA("GuiObject") then
                 RelativeOffset = RelativeOffset + Element.Size.Y.Offset
             end
         end
@@ -3528,7 +3528,7 @@ if not Info.Text and ParentObj.Text then
             local Buttons = {}
 
             for _, Element in next, Scrolling:GetChildren() do
-                if not Element:IsA("UIListLayout") then
+                if Element:IsA("GuiObject") then
                     Element:Destroy()
                 end
             end
@@ -5396,7 +5396,7 @@ do
         end
 
         for _, Element in next, Container:GetChildren() do
-            if not Element:IsA("UIListLayout") then
+            if Element:IsA("GuiObject") then
                 RelativeOffset = RelativeOffset + Element.Size.Y.Offset
             end
         end
@@ -5622,7 +5622,7 @@ do
             local Buttons = {}
 
             for _, Element in next, Scrolling:GetChildren() do
-                if not Element:IsA("UIListLayout") then
+                if Element:IsA("GuiObject") then
                     Element:Destroy()
                 end
             end
@@ -6827,7 +6827,7 @@ do
             local Size = 0
 
             for _, Element in next, DepGroupbox.Container:GetChildren() do
-                if (not Element:IsA("UIListLayout")) and Element.Visible then
+                if Element:IsA("GuiObject") and Element.Visible then
                     Size = Size + Element.Size.Y.Offset
                 end
             end
@@ -8453,7 +8453,7 @@ end
                 local Size = 0
 
                 for _, Element in next, Groupbox.Container:GetChildren() do
-                    if (not Element:IsA("UIListLayout")) and Element.Visible then
+                    if Element:IsA("GuiObject") and Element.Visible then
                         Size = Size + Element.Size.Y.Offset
                     end
                 end
@@ -8669,7 +8669,7 @@ end
                     end
 
                     for _, Button in next, TabboxButtons:GetChildren() do
-                        if not Button:IsA("UIListLayout") then
+                        if Button:IsA("GuiObject") then
                             Button.Size = UDim2.new(1 / TabCount, 0, 1, 0)
                         end
                     end
@@ -8681,7 +8681,7 @@ end
                     local Size = 0
 
                     for _, Element in next, Tab.Container:GetChildren() do
-                        if (not Element:IsA("UIListLayout")) and Element.Visible then
+                        if Element:IsA("GuiObject") and Element.Visible then
                             Size = Size + Element.Size.Y.Offset
                         end
                     end
