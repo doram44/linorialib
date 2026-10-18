@@ -131,6 +131,14 @@ local CustomImageManagerAssets = {
         URL = BaseURL .. "assets/SaturationMap.png",
 
         Id = nil,
+    },
+
+    LoadingIcon = {
+        RobloxId = 97544096941083,
+        Path = "LinoriaLib/assets/LoadingIcon.png",
+        URL = BaseURL .. "assets/LoadingIcon.png",
+
+        Id = nil,
     }
 }
 do
@@ -166,7 +174,7 @@ do
 
         CustomImageManagerAssets[AssetName] = {
             RobloxId = RobloxAssetId,
-            Path = string.format("Obsidian/custom_assets/%s", AssetName),
+            Path = string.format("LinoriaLib/custom_assets/%s", AssetName),
             URL = URL,
 
             Id = nil,
@@ -852,7 +860,14 @@ local function GetSchemeValue(Value)
         local Resolved = Library[Value]
 
         if typeof(Resolved) ~= "Color3" then
-            Resolved = Library.SchemeFallback[Value]
+            local Fallback = Library.SchemeFallback[Value]
+
+            if type(Fallback) == "function" then
+                local Ok, Result = pcall(Fallback)
+                Fallback = if Ok then Result else nil
+            end
+
+            Resolved = Fallback
         end
 
         if typeof(Resolved) == "Color3" then
@@ -1847,7 +1862,7 @@ Templates = { -- TO-DO: do it for missing elements.
         Icon = 95816097006870,
         IconSize = UDim2.fromOffset(30, 30),
 
-        LoadingIcon = nil,
+        LoadingIcon = CustomImageManager.GetAsset("LoadingIcon"),
         LoadingIconColor = nil,
         LoadingIconTweenTime = 1,
 
@@ -5342,7 +5357,7 @@ do
                 end
 
                 local Sides = {}
-                if Library.Window then
+                if Library.Window and Library.ActiveTab and Library.Window.Tabs[Library.ActiveTab] then
                     Sides = Library.Window.Tabs[Library.ActiveTab]:GetSides()
                 end
 
@@ -6166,6 +6181,8 @@ do
                 return
             end
             
+            if not Library.Window or not Library.ActiveTab or not Library.Window.Tabs[Library.ActiveTab] then return end
+
             for _, Side in pairs(Library.Window.Tabs[Library.ActiveTab]:GetSides()) do
                 if typeof(Side) == "Instance" then
                     if Side:IsA("ScrollingFrame") then
@@ -6179,6 +6196,8 @@ do
             if not Viewport.Interactive then
                 return
             end
+
+            if not Library.Window or not Library.ActiveTab or not Library.Window.Tabs[Library.ActiveTab] then return end
 
             for _, Side in pairs(Library.Window.Tabs[Library.ActiveTab]:GetSides()) do
                 if typeof(Side) == "Instance" then
@@ -9211,7 +9230,7 @@ function Library:CreateLoading(LoadingInfo)
 
     --// ScreenGui \\--
     local ScreenGui = New("ScreenGui", {
-        Name = "ObsidianLoading",
+        Name = "LinoriaLoading",
         DisplayOrder = 999,
         ResetOnSpawn = false
     })
