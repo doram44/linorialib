@@ -479,13 +479,13 @@ function Library:Validate(Table: { [string]: any }, Template: { [string]: any })
 end
 
 Library.DPIScale = DPIScale
+Library.CornerRadius = Library.CornerRadius or 4
 
 function Library:SetDPIScale(value: number) 
     assert(type(value) == "number", "Expected type number for DPI scale but got " .. typeof(value))
     
     DPIScale = value / 100
-Library.DPIScale = DPIScale
-Library.CornerRadius = Library.CornerRadius or 4
+    Library.DPIScale = DPIScale
     Library.MinSize = (if Library.IsMobile then Vector2.new(550, 200) else Vector2.new(550, 300)) * DPIScale
 end
 
