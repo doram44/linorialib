@@ -478,10 +478,14 @@ function Library:Validate(Table: { [string]: any }, Template: { [string]: any })
     return Table
 end
 
+Library.DPIScale = DPIScale
+
 function Library:SetDPIScale(value: number) 
     assert(type(value) == "number", "Expected type number for DPI scale but got " .. typeof(value))
     
     DPIScale = value / 100
+Library.DPIScale = DPIScale
+Library.CornerRadius = Library.CornerRadius or 4
     Library.MinSize = (if Library.IsMobile then Vector2.new(550, 200) else Vector2.new(550, 300)) * DPIScale
 end
 
@@ -807,12 +811,18 @@ function Library:AddDraggableLabel(Info)
 end
 
 Library.SchemeFallback = {
-    WhiteColor = Color3.new(1, 1, 1),
-    BlackColor = Color3.new(0, 0, 0),
-    DarkColor = Color3.fromRGB(12, 12, 12),
-    RedColor = Color3.fromRGB(255, 70, 70),
-    DestructiveColor = Color3.fromRGB(220, 38, 38),
+    WhiteColor = function()
+        return Library.FontColor
+    end,
+    DarkColor = function()
+        return Library.BackgroundColor
+    end,
+    DestructiveColor = function()
+        return Library.SchemeFallback.Destructive
+    end,
 }
+
+Library.SchemeFallback.Destructive = Color3.fromRGB(220, 38, 38)
 
 Library.Scheme = setmetatable({}, {
     __index = function(_, Key)
@@ -822,7 +832,13 @@ Library.Scheme = setmetatable({}, {
             return Value
         end
 
-        return Library.SchemeFallback[Key]
+        local Fallback = Library.SchemeFallback[Key]
+
+        if type(Fallback) == "function" then
+            return Fallback()
+        end
+
+        return Fallback
     end,
 })
 
@@ -872,6 +888,8 @@ local function New(ClassName: string, Properties: { [string]: any })
             if Color then
                 Resolved[Key] = Color
                 Theme[Key] = SchemeName
+            elseif type(Value) == "string" and Resolved[Key] == nil then
+                continue
             else
                 Resolved[Key] = Value
             end
@@ -9134,9 +9152,7 @@ function Library:CreateLoading(LoadingInfo)
     local MainFrame = New("TextButton", {
         Name = "Main",
         AnchorPoint = Vector2.new(0.5, 0.5),
-        BackgroundColor3 = function()
-            return Library:GetBetterColor(Library.Scheme.BackgroundColor, -1)
-        end,
+        BackgroundTransparency = 1,
         Position = UDim2.fromScale(0.5, 0.5),
         Size = UDim2.fromOffset(Loading.ShowSidebar and (Loading.ContentWidth + Loading.SidebarWidth) or Loading.WindowWidth, Loading.WindowHeight),
         ClipsDescendants = true,
