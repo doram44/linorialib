@@ -1863,7 +1863,7 @@ Templates = { -- TO-DO: do it for missing elements.
         Icon = 95816097006870,
         IconSize = UDim2.fromOffset(30, 30),
 
-        LoadingIcon = CustomImageManager.GetAsset("LoadingIcon"),
+        LoadingIcon = "rbxassetid://97544096941083",
         LoadingIconColor = nil,
         LoadingIconTweenTime = 1,
 
