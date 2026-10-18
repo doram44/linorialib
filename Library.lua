@@ -136,7 +136,7 @@ local CustomImageManagerAssets = {
     LoadingIcon = {
         RobloxId = 97544096941083,
         Path = "LinoriaLib/assets/LoadingIcon.png",
-        URL = BaseURL .. "assets/LoadingIcon.png",
+        URL = "https://raw.githubusercontent.com/deividcomsono/Obsidian/refs/heads/main/assets/LoadingIcon.png",
 
         Id = nil,
     }
@@ -9414,10 +9414,32 @@ function Library:CreateLoading(LoadingInfo)
         Library:ApplyLucideIcon(LoadingIcon, LoaderIcon)
     end
 
+    local FallbackIcon
+    if not LoaderIcon then
+        FallbackIcon = New("TextLabel", {
+            Name = "FallbackIcon",
+            AnchorPoint = Vector2.new(0.5, 0.5),
+            BackgroundTransparency = 1,
+            Position = UDim2.fromScale(0.5, 0.5),
+            Size = UDim2.fromOffset(48, 48),
+            Text = "\u{25D0}",
+            TextColor3 = "AccentColor",
+            TextSize = 40,
+            Font = function()
+                return Library.Font
+            end,
+            Parent = IconHolder,
+        })
+
+        LoadingIcon.Visible = false
+    end
+
+    local IconTarget = if LoaderIcon then LoadingIcon else FallbackIcon
+
     local RotationTween
     if LoadingInfo.LoadingIconTweenTime > 0 then
         RotationTween = TweenService:Create(
-            LoadingIcon,
+            IconTarget,
             TweenInfo.new(LoadingInfo.LoadingIconTweenTime, Enum.EasingStyle.Linear, Enum.EasingDirection.Out, -1),
             { Rotation = 360 }
         )
@@ -9660,6 +9682,14 @@ function Library:CreateLoading(LoadingInfo)
         assert(IconData, "Image must be a valid Roblox asset or a valid URL or a valid lucide icon.")
 
         Library:ApplyLucideIcon(LoadingIcon, IconData)
+
+        if FallbackIcon then
+            FallbackIcon.Visible = false
+            LoadingIcon.Visible = true
+            IconTarget = LoadingIcon
+
+            Loading:SetLoadingIconTweenTime(Loading.LoadingIconTweenTime)
+        end
     end
 
     function Loading:SetLoadingIconTweenTime(TweenTime)
@@ -9670,18 +9700,22 @@ function Library:CreateLoading(LoadingInfo)
 
         if TweenTime > 0 then
             RotationTween = TweenService:Create(
-                LoadingIcon,
+                IconTarget,
                 TweenInfo.new(TweenTime, Enum.EasingStyle.Linear, Enum.EasingDirection.Out, -1),
                 { Rotation = 360 }
             )
             RotationTween:Play()
         else
-            LoadingIcon.Rotation = 0
+            IconTarget.Rotation = 0
         end
     end
 
     function Loading:SetLoadingIconColor(Color)
         LoadingIcon.ImageColor3 = Color
+
+        if FallbackIcon then
+            FallbackIcon.TextColor3 = Color
+        end
     end
 
     function Loading:SetIcon(Icon)
