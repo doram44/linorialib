@@ -873,27 +873,57 @@ local function GetSchemeValue(Value)
     return nil
 end
 
+local ColorProperties = {
+    BackgroundColor3 = true,
+    BorderColor3 = true,
+    TextColor3 = true,
+    ImageColor3 = true,
+    RichTextColor3 = true,
+    SelectionColor3 = true,
+    SelectionImageColor3 = true,
+    FillColor = true,
+    Color = true,
+}
+
+local Templates
+
 local function New(ClassName: string, Properties: { [string]: any })
     local InstanceObject = ClassName
 
     local Resolved = {}
     local Theme = {}
 
-    for Key, Value in Properties do
-        if Key == "Text" then
-            Resolved[Key] = Value
-        else
-            local Color, SchemeName = GetSchemeValue(Value)
+    local function ApplyProperty(Key, Value)
+        local Color, SchemeName = GetSchemeValue(Value)
 
-            if Color then
-                Resolved[Key] = Color
-                Theme[Key] = SchemeName
-            elseif type(Value) == "string" and Resolved[Key] == nil then
-                continue
-            else
-                Resolved[Key] = Value
+        if Color then
+            Resolved[Key] = Color
+            Theme[Key] = SchemeName
+        elseif type(Value) == "function" then
+            local Ok, Result = pcall(Value)
+
+            if Ok then
+                Resolved[Key] = Result
+            end
+        elseif type(Value) == "string" and ColorProperties[Key] and Library[Value] == nil and Library.SchemeFallback[Value] == nil then
+            Resolved[Key] = nil
+        else
+            Resolved[Key] = Value
+        end
+    end
+
+    local Defaults = if typeof(ClassName) == "string" then Templates[ClassName] else nil
+
+    if Defaults then
+        for Key, Value in Defaults do
+            if Properties[Key] == nil then
+                ApplyProperty(Key, Value)
             end
         end
+    end
+
+    for Key, Value in Properties do
+        ApplyProperty(Key, Value)
     end
 
     InstanceObject = Library:Create(InstanceObject, Resolved)
@@ -1730,7 +1760,58 @@ Library:GiveSignal(ScreenGui.DescendantRemoving:Connect(function(Instance)
 end))
 
 --// Templates \\--
-local Templates = { -- TO-DO: do it for missing elements.
+Templates = { -- TO-DO: do it for missing elements.
+    --// UI \\--
+    Frame = {
+        BorderSizePixel = 0,
+    },
+    ImageLabel = {
+        BackgroundTransparency = 1,
+        BorderSizePixel = 0,
+    },
+    ImageButton = {
+        AutoButtonColor = false,
+        BorderSizePixel = 0,
+    },
+    ScrollingFrame = {
+        BorderSizePixel = 0,
+    },
+    TextLabel = {
+        BorderSizePixel = 0,
+        Font = function()
+            return Library.Font
+        end,
+        RichText = true,
+        TextColor3 = "FontColor",
+    },
+    TextButton = {
+        AutoButtonColor = false,
+        BorderSizePixel = 0,
+        Font = function()
+            return Library.Font
+        end,
+        RichText = true,
+        TextColor3 = "FontColor",
+    },
+    TextBox = {
+        BorderSizePixel = 0,
+        Font = function()
+            return Library.Font
+        end,
+        PlaceholderColor3 = function()
+            local H, S, V = Color3.toHSV(Library.FontColor)
+            return Color3.fromHSV(H, S, V / 2)
+        end,
+        Text = "",
+        TextColor3 = "FontColor",
+    },
+    UIListLayout = {
+        SortOrder = Enum.SortOrder.LayoutOrder,
+    },
+    UIStroke = {
+        ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
+    },
+
     --// Window \\--
     Window = {
         Title = "No Title",
@@ -3528,7 +3609,7 @@ if not Info.Text and ParentObj.Text then
             local Buttons = {}
 
             for _, Element in next, Scrolling:GetChildren() do
-                if Element:IsA("GuiObject") then
+                if not Element:IsA("UIListLayout") then
                     Element:Destroy()
                 end
             end
@@ -5622,7 +5703,7 @@ do
             local Buttons = {}
 
             for _, Element in next, Scrolling:GetChildren() do
-                if Element:IsA("GuiObject") then
+                if not Element:IsA("UIListLayout") then
                     Element:Destroy()
                 end
             end
@@ -9152,7 +9233,9 @@ function Library:CreateLoading(LoadingInfo)
     local MainFrame = New("TextButton", {
         Name = "Main",
         AnchorPoint = Vector2.new(0.5, 0.5),
-        BackgroundTransparency = 1,
+        BackgroundColor3 = function()
+            return Library:GetBetterColor(Library.Scheme.BackgroundColor, -1)
+        end,
         Position = UDim2.fromScale(0.5, 0.5),
         Size = UDim2.fromOffset(Loading.ShowSidebar and (Loading.ContentWidth + Loading.SidebarWidth) or Loading.WindowWidth, Loading.WindowHeight),
         ClipsDescendants = true,
