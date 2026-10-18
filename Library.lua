@@ -858,11 +858,7 @@ local function GetSchemeValue(Value)
 end
 
 local function New(ClassName: string, Properties: { [string]: any })
-    local Instance = ClassName
-
-    if typeof(ClassName) == "string" then
-        Instance = Instance.new(ClassName)
-    end
+    local InstanceObject = ClassName
 
     local Resolved = {}
     local Theme = {}
@@ -882,19 +878,19 @@ local function New(ClassName: string, Properties: { [string]: any })
         end
     end
 
-    Instance = Library:Create(Instance, Resolved)
+    InstanceObject = Library:Create(InstanceObject, Resolved)
 
     if next(Theme) ~= nil then
-        Library:AddToRegistry(Instance, Theme)
+        Library:AddToRegistry(InstanceObject, Theme)
     end
 
     if Properties["Parent"] and not Properties["ZIndex"] then
         pcall(function()
-            Instance.ZIndex = Properties.Parent.ZIndex
+            InstanceObject.ZIndex = Properties.Parent.ZIndex
         end)
     end
 
-    return Instance
+    return InstanceObject
 end
 
 local function StopTween(Tween: TweenBase, Destroy: boolean?)
