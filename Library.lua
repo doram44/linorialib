@@ -744,6 +744,198 @@ function Library:AddDraggableLabel(Info)
     return DraggableLabel
 end
 
+function Library:AddOutline(Frame)
+    local Stroke = Library:Create("UIStroke", {
+        ApplyStrokeMode = Enum.ApplyStrokeMode.Border;
+        Color = Library.OutlineColor;
+        Transparency = 0;
+        Parent = Frame;
+    })
+
+    Library:AddToRegistry(Stroke, {
+        Color = "OutlineColor";
+    })
+
+    return Stroke
+end
+
+function Library:MakeLine(Frame, Info)
+    local Line = Library:Create("Frame", {
+        BackgroundColor3 = Library.OutlineColor;
+        BorderSizePixel = 0;
+        Position = Info.Position or UDim2.new(0, 0, 0, 0);
+        Size = Info.Size or UDim2.new(1, 0, 0, 1);
+        Parent = Frame;
+    })
+
+    Library:AddToRegistry(Line, {
+        BackgroundColor3 = "OutlineColor";
+    })
+
+    return Line
+end
+
+function Library:AddDraggableButton(...)
+    local Params = select(1, ...)
+
+    local Text
+    local Func
+    local ExcludeScaling
+    local ExcludeDragging
+
+    if typeof(Params) == "table" then
+        Text = Params.Text
+        Func = Params.Callback or Params.Func
+        ExcludeScaling = Params.ExcludeScaling
+        ExcludeDragging = Params.ExcludeDragging
+    else
+        Text = Params
+        Func = select(2, ...)
+        ExcludeScaling = select(3, ...)
+        ExcludeDragging = select(4, ...)
+    end
+
+    local DraggableButton = {
+        Connections = {};
+        Destroyed = false;
+    }
+
+    local Button = Library:Create("TextButton", {
+        BackgroundColor3 = Library.BackgroundColor;
+        Position = UDim2.fromOffset(6, 6);
+        Size = UDim2.fromOffset(0, 0);
+        TextSize = 16;
+        TextColor3 = Library.FontColor;
+        TextStrokeTransparency = 1;
+        AutoButtonColor = false;
+        ZIndex = 300;
+        Parent = ScreenGui;
+    })
+
+    Library:AddToRegistry(Button, {
+        BackgroundColor3 = "BackgroundColor";
+    }, true)
+
+    Library:AddOutline(Button)
+
+    local PressPosition
+
+    DraggableButton.Connections[#DraggableButton.Connections + 1] = Button.InputBegan:Connect(function(Input)
+        if Input.UserInputType == Enum.UserInputType.MouseButton1 then
+            PressPosition = Button.AbsolutePosition
+        end
+    end)
+
+    DraggableButton.Connections[#DraggableButton.Connections + 1] = Button.MouseButton1Click:Connect(function()
+        if PressPosition and (Button.AbsolutePosition - PressPosition).Magnitude > 10 then
+            return
+        end
+
+        Library:SafeCallback(Func, DraggableButton)
+    end)
+
+    function DraggableButton:SetText(NewText)
+        local X, Y = Library:GetTextBounds(NewText, Library.Font, 16)
+
+        Button.Text = NewText
+        Button.Size = UDim2.fromOffset(X + 20, Y + 10)
+    end
+
+    if not ExcludeDragging then
+        Library:MakeDraggable(Button, 9999, false)
+    end
+
+    DraggableButton:SetText(Text or "")
+    DraggableButton.Button = Button
+
+    function DraggableButton:Destroy()
+        DraggableButton.Destroyed = true
+
+        for _, Connection in next, DraggableButton.Connections do
+            pcall(function()
+                Connection:Disconnect()
+            end)
+        end
+
+        table.clear(DraggableButton.Connections)
+
+        if Button then
+            Button:Destroy()
+        end
+    end
+
+    return DraggableButton
+end
+
+function Library:AddDraggableMenu(Name)
+    local Holder = Library:Create("Frame", {
+        BackgroundColor3 = Library.BackgroundColor;
+        Position = UDim2.fromOffset(6, 6);
+        Size = UDim2.fromOffset(180, 0);
+        ZIndex = 300;
+        Parent = ScreenGui;
+    })
+
+    Library:AddToRegistry(Holder, {
+        BackgroundColor3 = "BackgroundColor";
+    }, true)
+
+    Library:AddOutline(Holder)
+
+    local DividerLine = Library:MakeLine(Holder, {
+        Position = UDim2.fromOffset(0, 34);
+        Size = UDim2.new(1, 0, 0, 1);
+    })
+
+    local Label = Library:CreateLabel({
+        BackgroundTransparency = 1;
+        Size = UDim2.new(1, 0, 0, 34);
+        Text = Name;
+        TextSize = 15;
+        TextXAlignment = Enum.TextXAlignment.Left;
+        ZIndex = 301;
+        Parent = Holder;
+    })
+
+    local LabelPadding = Library:Create("UIPadding", {
+        PaddingLeft = UDim.new(0, 12);
+        PaddingRight = UDim.new(0, 12);
+        Parent = Label;
+    })
+
+    local Container = Library:Create("Frame", {
+        BackgroundTransparency = 1;
+        Position = UDim2.fromOffset(0, 35);
+        Size = UDim2.new(1, 0, 0, 0);
+        ZIndex = 301;
+        Parent = Holder;
+    })
+
+    local ContainerLayout = Library:Create("UIListLayout", {
+        Padding = UDim.new(0, 7);
+        Parent = Container;
+    })
+
+    local ContainerPadding = Library:Create("UIPadding", {
+        PaddingBottom = UDim.new(0, 7);
+        PaddingLeft = UDim.new(0, 7);
+        PaddingRight = UDim.new(0, 7);
+        PaddingTop = UDim.new(0, 7);
+        Parent = Container;
+    })
+
+    local function Resize()
+        Holder.Size = UDim2.fromOffset(180, 35 + ContainerLayout.AbsoluteContentSize.Y + 14)
+    end
+
+    ContainerLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(Resize)
+    Resize()
+
+    Library:MakeDraggable(Holder, 34, false)
+
+    return Holder, Container, Label, DividerLine, LabelPadding
+end
+
 function Library:MakeDraggableUsingParent(Instance, Parent, Cutoff, IsMainWindow)
     Instance.Active = true
 
@@ -1277,6 +1469,29 @@ local Templates = { -- TO-DO: do it for missing elements.
         Instance = nil,
         Height = 24,
         Visible = true,
+    },
+
+    Loading = {
+        Title = "Loading",
+        Icon = nil,
+        IconSize = UDim2.fromOffset(30, 30),
+
+        LoadingIcon = nil,
+        LoadingIconColor = nil,
+        LoadingIconTweenTime = 1.5,
+
+        CurrentStep = 0,
+        TotalSteps = 10,
+
+        ShowSidebar = false,
+        AutoResizeHeight = false,
+        AlwaysOnTop = true,
+
+        WindowWidth = 450,
+        WindowHeight = 275,
+
+        ContentWidth = 450,
+        SidebarWidth = 250,
     }
 }
 
@@ -8595,6 +8810,699 @@ Library:GiveSignal(RunService.RenderStepped:Connect(function(Delta)
 end))
 
 ----
+function Library:CreateLoading(LoadingInfo)
+    if Library.ActiveLoading then
+        warn("Loading GUI already exists, you cannot create multiple Loading GUIs.")
+        return Library.ActiveLoading
+    end
+
+    LoadingInfo = Library:Validate(LoadingInfo, Templates.Loading)
+
+    local Loading = {
+        CurrentStep = LoadingInfo.CurrentStep;
+        TotalSteps = LoadingInfo.TotalSteps;
+
+        ShowSidebar = LoadingInfo.ShowSidebar;
+        AutoResizeHeight = LoadingInfo.AutoResizeHeight;
+        AlwaysOnTop = LoadingInfo.AlwaysOnTop;
+
+        IsError = false;
+        Destroyed = false;
+
+        WindowWidth = LoadingInfo.WindowWidth;
+        WindowHeight = LoadingInfo.WindowHeight;
+        BaseWindowHeight = LoadingInfo.WindowHeight;
+        WindowErrorHeight = LoadingInfo.WindowHeight;
+
+        ContentWidth = LoadingInfo.ContentWidth;
+        SidebarWidth = LoadingInfo.SidebarWidth;
+    }
+
+    local FadeInfo = TweenInfo.new(0.25, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+
+    local LoadingGui = Library:Create("ScreenGui", {
+        Name = "LoadingGui";
+        DisplayOrder = LoadingInfo.AlwaysOnTop and 999 or 100;
+        ResetOnSpawn = false;
+        IgnoreGuiInset = true;
+        ZIndexBehavior = Enum.ZIndexBehavior.Sibling;
+    })
+
+    ParentUI(LoadingGui)
+    Loading.ScreenGui = LoadingGui
+
+    local function SetAlwaysOnTop(Enabled)
+        LoadingGui.DisplayOrder = Enabled and 999 or 100
+    end
+
+    local MainFrame = Library:Create("TextButton", {
+        Name = "Main";
+        AnchorPoint = Vector2.new(0.5, 0.5);
+        BackgroundColor3 = Library:GetBetterColor(Library.BackgroundColor, -1);
+        Position = UDim2.fromScale(0.5, 0.5);
+        Size = UDim2.fromOffset(Loading.ShowSidebar and (Loading.ContentWidth + Loading.SidebarWidth) or Loading.WindowWidth, Loading.WindowHeight);
+        ClipsDescendants = true;
+        Text = "";
+        AutoButtonColor = false;
+        ZIndex = 1;
+        Parent = LoadingGui;
+    })
+
+    Library:AddOutline(MainFrame)
+
+    local Container = Library:Create("Frame", {
+        Name = "Content";
+        BackgroundTransparency = 1;
+        Size = UDim2.new(0, Loading.ContentWidth, 1, 0);
+        ZIndex = 2;
+        Parent = MainFrame;
+    })
+
+    local SideBar = Library:Create("Frame", {
+        Name = "SideBar";
+        BackgroundTransparency = 1;
+        Position = UDim2.fromOffset(Loading.ContentWidth, 0);
+        Size = UDim2.new(0, Loading.ShowSidebar and Loading.SidebarWidth or 0, 1, 0);
+        ClipsDescendants = true;
+        Visible = Loading.ShowSidebar;
+        ZIndex = 2;
+        Parent = MainFrame;
+    })
+
+    Library:AddOutline(SideBar)
+
+    local SidebarDivider = Library:Create("Frame", {
+        BackgroundColor3 = Library.OutlineColor;
+        BorderSizePixel = 0;
+        Size = UDim2.new(0, 1, 1, 0);
+        Visible = Loading.ShowSidebar;
+        ZIndex = 3;
+        Parent = SideBar;
+    })
+
+    Library:AddToRegistry(SidebarDivider, {
+        BackgroundColor3 = "OutlineColor";
+    })
+
+    local TopBar = Library:Create("Frame", {
+        Name = "TopBar";
+        BackgroundTransparency = 1;
+        Size = UDim2.new(1, 0, 0, 48);
+        ZIndex = 3;
+        Parent = Container;
+    })
+
+    Library:MakeDraggable(MainFrame, 9999, false)
+
+    local TitleHolder = Library:Create("Frame", {
+        BackgroundTransparency = 1;
+        Size = UDim2.new(1, 0, 1, 0);
+        ZIndex = 3;
+        Parent = TopBar;
+    })
+
+    local TitleLayout = Library:Create("UIListLayout", {
+        FillDirection = Enum.FillDirection.Horizontal;
+        HorizontalAlignment = Enum.HorizontalAlignment.Left;
+        VerticalAlignment = Enum.VerticalAlignment.Center;
+        Padding = UDim.new(0, 6);
+        Parent = TitleHolder;
+    })
+
+    local TitlePadding = Library:Create("UIPadding", {
+        PaddingLeft = UDim.new(0, 12);
+        Parent = TitleHolder;
+    })
+
+    local IconWidth = 0
+
+    if LoadingInfo.Icon then
+        local TitleIcon = Library:GetCustomIcon(LoadingInfo.Icon)
+
+        if TitleIcon then
+            IconWidth = LoadingInfo.IconSize.X.Offset + 6
+
+            Library:Create("ImageLabel", {
+                BackgroundTransparency = 1;
+                Image = TitleIcon.Url;
+                ImageColor3 = Library.AccentColor;
+                ImageRectOffset = TitleIcon.ImageRectOffset;
+                ImageRectSize = TitleIcon.ImageRectSize;
+                Size = LoadingInfo.IconSize;
+                ZIndex = 4;
+                Parent = TitleHolder;
+            })
+        end
+    end
+
+    local TitleTextWidth = Library:GetTextBounds(LoadingInfo.Title, Library.Font, 20)
+    local TitleMaxWidth = math.max(0, (TitleHolder.AbsoluteSize.X / DPIScale) - IconWidth - 12)
+
+    local TitleLabel = Library:CreateLabel({
+        BackgroundTransparency = 1;
+        Size = UDim2.new(0, math.min(TitleTextWidth, TitleMaxWidth), 1, 0);
+        Text = LoadingInfo.Title;
+        TextSize = 20;
+        TextTruncate = Enum.TextTruncate.AtEnd;
+        TextXAlignment = Enum.TextXAlignment.Left;
+        TextYAlignment = Enum.TextYAlignment.Center;
+        ZIndex = 4;
+        Parent = TitleHolder;
+    })
+
+    local TopLine = Library:MakeLine(Container, {
+        Position = UDim2.fromOffset(0, 48);
+        Size = UDim2.new(1, 0, 0, 1);
+    })
+
+    local InnerContent = Library:Create("Frame", {
+        Name = "InnerContent";
+        BackgroundTransparency = 1;
+        Position = UDim2.fromOffset(0, 49);
+        Size = UDim2.new(1, 0, 1, -49);
+        ZIndex = 3;
+        Parent = Container;
+    })
+
+    local InnerLayout = Library:Create("UIListLayout", {
+        FillDirection = Enum.FillDirection.Vertical;
+        HorizontalAlignment = Enum.HorizontalAlignment.Center;
+        VerticalAlignment = Enum.VerticalAlignment.Center;
+        Padding = UDim.new(0, 12);
+        Parent = InnerContent;
+    })
+
+    local IconHolder = Library:Create("Frame", {
+        Name = "IconHolder";
+        BackgroundTransparency = 1;
+        Size = UDim2.fromOffset(64, 64);
+        ZIndex = 3;
+        Parent = InnerContent;
+    })
+
+    local LoadingIconHolder = Library:Create("ImageLabel", {
+        Name = "LoaderIcon";
+        AnchorPoint = Vector2.new(0.5, 0.5);
+        BackgroundTransparency = 1;
+        ImageColor3 = LoadingInfo.LoadingIconColor or Library.AccentColor;
+        Position = UDim2.fromScale(0.5, 0.5);
+        Size = UDim2.fromScale(1, 1);
+        ZIndex = 3;
+        Parent = IconHolder;
+    })
+
+    local LoaderIcon = Library:GetCustomIcon(LoadingInfo.LoadingIcon)
+    if LoaderIcon then
+        LoadingIconHolder.Image = LoaderIcon.Url
+        LoadingIconHolder.ImageRectOffset = LoaderIcon.ImageRectOffset
+        LoadingIconHolder.ImageRectSize = LoaderIcon.ImageRectSize
+    end
+
+    local IconTween
+
+    local function StartIconTween(TweenTime)
+        if IconTween then
+            IconTween:Cancel()
+            IconTween = nil
+        end
+
+        LoadingIconHolder.Rotation = 0
+
+        if TweenTime and TweenTime > 0 then
+            IconTween = TweenService:Create(
+                LoadingIconHolder,
+                TweenInfo.new(TweenTime, Enum.EasingStyle.Linear, Enum.EasingDirection.Out, -1),
+                { Rotation = 360 }
+            )
+
+            IconTween:Play()
+        end
+    end
+
+    StartIconTween(LoadingInfo.LoadingIconTweenTime)
+
+    local MessageLabel = Library:CreateLabel({
+        BackgroundTransparency = 1;
+        AutomaticSize = Loading.AutoResizeHeight and Enum.AutomaticSize.Y or Enum.AutomaticSize.XY;
+        Size = Loading.AutoResizeHeight and UDim2.new(1, -60, 0, 0) or UDim2.fromOffset(0, 0);
+        Text = "";
+        TextSize = 18;
+        TextWrapped = Loading.AutoResizeHeight;
+        ZIndex = 3;
+        Parent = InnerContent;
+    })
+
+    local DescriptionLabel = Library:CreateLabel({
+        BackgroundTransparency = 1;
+        AutomaticSize = Loading.AutoResizeHeight and Enum.AutomaticSize.Y or Enum.AutomaticSize.XY;
+        Size = Loading.AutoResizeHeight and UDim2.new(1, -60, 0, 0) or UDim2.fromOffset(0, 0);
+        Text = "";
+        TextSize = 14;
+        TextTransparency = 0.5;
+        TextWrapped = Loading.AutoResizeHeight;
+        ZIndex = 3;
+        Parent = InnerContent;
+    })
+
+    local SliderBar = Library:Create("Frame", {
+        BackgroundColor3 = Library.MainColor;
+        Size = UDim2.new(0.7, 0, 0, 15);
+        ZIndex = 3;
+        Parent = InnerContent;
+    })
+
+    Library:AddToRegistry(SliderBar, {
+        BackgroundColor3 = "MainColor";
+    })
+
+    Library:AddOutline(SliderBar)
+
+    local SliderFill = Library:Create("Frame", {
+        BackgroundColor3 = Library.AccentColor;
+        BorderSizePixel = 0;
+        Size = UDim2.fromScale(0, 1);
+        ZIndex = 4;
+        Parent = SliderBar;
+    })
+
+    Library:AddToRegistry(SliderFill, {
+        BackgroundColor3 = "AccentColor";
+    })
+
+    local ProgressLabel = Library:CreateLabel({
+        BackgroundTransparency = 1;
+        Size = UDim2.fromScale(1, 1);
+        Text = "";
+        TextSize = 14;
+        ZIndex = 5;
+        Parent = SliderBar;
+    })
+
+    local SidebarScrolling = Library:Create("ScrollingFrame", {
+        BackgroundTransparency = 1;
+        BorderSizePixel = 0;
+        CanvasSize = UDim2.new(0, 0, 0, 0);
+        ScrollBarImageColor3 = Library.OutlineColor;
+        ScrollBarImageTransparency = 0;
+        ScrollBarThickness = 2;
+        Size = UDim2.fromScale(1, 1);
+        ZIndex = 3;
+        Parent = SideBar;
+    })
+
+    local SidebarList = Library:Create("UIListLayout", {
+        Padding = UDim.new(0, 8);
+        SortOrder = Enum.SortOrder.LayoutOrder;
+        Parent = SidebarScrolling;
+    })
+
+    local SidebarPadding = Library:Create("UIPadding", {
+        PaddingBottom = UDim.new(0, 12);
+        PaddingLeft = UDim.new(0, 12);
+        PaddingRight = UDim.new(0, 12);
+        PaddingTop = UDim.new(0, 12);
+        Parent = SidebarScrolling;
+    })
+
+    local SidebarObject = {
+        Elements = {};
+        TableType = "Groupbox";
+        Visible = true;
+
+        BoxHolder = SidebarScrolling;
+        Container = SidebarScrolling;
+    }
+
+    function SidebarObject:Resize()
+        SidebarScrolling.CanvasSize = UDim2.fromOffset(0, SidebarList.AbsoluteContentSize.Y + 24)
+    end
+
+    setmetatable(SidebarObject, BaseGroupbox)
+    Loading.Sidebar = SidebarObject
+
+    SidebarList:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
+        SidebarObject:Resize()
+    end)
+
+    local ErrorFrame = Library:Create("Frame", {
+        Name = "Error";
+        BackgroundTransparency = 1;
+        Position = UDim2.fromOffset(0, 49);
+        Size = UDim2.new(1, 0, 1, -49);
+        ClipsDescendants = true;
+        Visible = false;
+        ZIndex = 4;
+        Parent = Container;
+    })
+
+    local ErrorTitle = Library:CreateLabel({
+        BackgroundTransparency = 1;
+        Position = UDim2.fromOffset(15, 15);
+        Size = UDim2.new(1, -30, 0, 18);
+        Text = "Error";
+        TextColor3 = DestructiveColor;
+        TextSize = 18;
+        TextXAlignment = Enum.TextXAlignment.Left;
+        ZIndex = 4;
+        Parent = ErrorFrame;
+    })
+
+    Library:AddToRegistry(ErrorTitle, {
+        TextColor3 = "DestructiveColor";
+    })
+
+    local ErrorLabel = Library:CreateLabel({
+        BackgroundTransparency = 1;
+        Position = UDim2.fromOffset(15, 39);
+        Size = UDim2.new(1, -30, 1, -90);
+        Text = "Error Message";
+        TextSize = 14;
+        TextTransparency = 0.2;
+        TextWrapped = true;
+        TextXAlignment = Enum.TextXAlignment.Left;
+        TextYAlignment = Enum.TextYAlignment.Top;
+        ZIndex = 4;
+        Parent = ErrorFrame;
+    })
+
+    local ErrorButtonsDivider = Library:Create("Frame", {
+        AnchorPoint = Vector2.new(0.5, 0);
+        BackgroundColor3 = Library.OutlineColor;
+        BorderSizePixel = 0;
+        Position = UDim2.new(0.5, 0, 1, -48);
+        Size = UDim2.new(1, -30, 0, 1);
+        Visible = false;
+        ZIndex = 4;
+        Parent = ErrorFrame;
+    })
+
+    Library:AddToRegistry(ErrorButtonsDivider, {
+        BackgroundColor3 = "OutlineColor";
+    })
+
+    local ErrorButtonsHolder = Library:Create("Frame", {
+        AnchorPoint = Vector2.new(0.5, 1);
+        BackgroundTransparency = 1;
+        Position = UDim2.new(0.5, 0, 1, 0);
+        Size = UDim2.new(1, 0, 0, 42);
+        Visible = false;
+        ZIndex = 4;
+        Parent = ErrorFrame;
+    })
+
+    local ErrorButtonsLayout = Library:Create("UIListLayout", {
+        FillDirection = Enum.FillDirection.Horizontal;
+        HorizontalAlignment = Enum.HorizontalAlignment.Right;
+        Padding = UDim.new(0, 8);
+        SortOrder = Enum.SortOrder.LayoutOrder;
+        VerticalAlignment = Enum.VerticalAlignment.Center;
+        Parent = ErrorButtonsHolder;
+    })
+
+    local ErrorButtonsPadding = Library:Create("UIPadding", {
+        PaddingBottom = UDim.new(0, 15);
+        PaddingRight = UDim.new(0, 15);
+        PaddingTop = UDim.new(0, 5);
+        Parent = ErrorButtonsHolder;
+    })
+
+    function Loading:RecalculateLoadingHeight()
+        if not Loading.AutoResizeHeight then
+            return
+        end
+
+        Loading.WindowHeight = math.max(Loading.BaseWindowHeight, 49 + 48 + InnerLayout.AbsoluteContentSize.Y)
+    end
+
+    function Loading:RecalculateErrorHeight()
+        local TargetWidth = (Loading.ShowSidebar and Loading.ContentWidth or Loading.WindowWidth) - 30
+        local ErrorY = Library:GetTextBounds(ErrorLabel.Text, Library.Font, 14, TargetWidth)
+
+        ErrorLabel.Size = UDim2.new(1, -30, 0, ErrorY)
+
+        Loading.WindowErrorHeight = 49 + 15 + 18 + 6 + ErrorY + 15 + (ErrorButtonsHolder.Visible and 48 or 0)
+    end
+
+    function Loading:UpdateLayout()
+        if Loading.IsError then
+            Loading:RecalculateErrorHeight()
+        end
+
+        local ShowSidebar = Loading.ShowSidebar
+        local FinalWidth = ShowSidebar and (Loading.ContentWidth + Loading.SidebarWidth) or Loading.WindowWidth
+        local FinalHeight = Loading.IsError and Loading.WindowErrorHeight or Loading.WindowHeight
+
+        if ShowSidebar then
+            SideBar.Visible = true
+            SidebarDivider.Visible = true
+        end
+
+        TweenService:Create(MainFrame, FadeInfo, { Size = UDim2.fromOffset(FinalWidth, FinalHeight) }):Play()
+        TweenService:Create(SideBar, FadeInfo, { Position = UDim2.fromOffset(Loading.ContentWidth, 0), Size = UDim2.new(0, ShowSidebar and Loading.SidebarWidth or 0, 1, 0) }):Play()
+        TweenService:Create(Container, FadeInfo, { Size = UDim2.new(0, ShowSidebar and Loading.ContentWidth or Loading.WindowWidth, 1, 0) }):Play()
+
+        if not ShowSidebar then
+            task.delay(FadeInfo.Time, function()
+                if not Loading.ShowSidebar then
+                    SideBar.Visible = false
+                    SidebarDivider.Visible = false
+                end
+            end)
+        end
+    end
+
+    function Loading:SetMessage(Text)
+        MessageLabel.Text = Text
+
+        if Loading.AutoResizeHeight then
+            Loading:RecalculateLoadingHeight()
+            Loading:UpdateLayout()
+        end
+    end
+
+    function Loading:SetDescription(Text)
+        DescriptionLabel.Text = Text
+
+        if Loading.AutoResizeHeight then
+            Loading:RecalculateLoadingHeight()
+            Loading:UpdateLayout()
+        end
+    end
+
+    function Loading:SetCurrentStep(Step)
+        Loading.CurrentStep = math.clamp(Step, 0, Loading.TotalSteps)
+
+        TweenService:Create(SliderFill, FadeInfo, { Size = UDim2.fromScale(Loading.CurrentStep / Loading.TotalSteps, 1) }):Play()
+
+        ProgressLabel.Text = string.format("%d/%d", Loading.CurrentStep, Loading.TotalSteps)
+    end
+
+    function Loading:SetTotalSteps(Steps)
+        Loading.TotalSteps = Steps
+        Loading:SetCurrentStep(Loading.CurrentStep)
+    end
+
+    function Loading:SetLoadingIcon(Icon)
+        local NewIcon = Library:GetCustomIcon(Icon)
+        assert(NewIcon, "Image must be a valid Roblox asset or a valid URL.")
+
+        LoadingIconHolder.Image = NewIcon.Url
+        LoadingIconHolder.ImageRectOffset = NewIcon.ImageRectOffset
+        LoadingIconHolder.ImageRectSize = NewIcon.ImageRectSize
+    end
+
+    function Loading:SetLoadingIconTweenTime(TweenTime)
+        StartIconTween(TweenTime)
+    end
+
+    function Loading:SetLoadingIconColor(Color)
+        LoadingIconHolder.ImageColor3 = Color
+    end
+
+    function Loading:SetWindowHeight(Height)
+        Loading.WindowHeight = Height
+        Loading:UpdateLayout()
+    end
+
+    function Loading:SetWindowWidth(Width)
+        Loading.WindowWidth = Width
+        Loading:UpdateLayout()
+    end
+
+    function Loading:SetContentWidth(Width)
+        Loading.ContentWidth = Width
+        Loading:UpdateLayout()
+    end
+
+    function Loading:SetSidebarWidth(Width)
+        Loading.SidebarWidth = Width
+        Loading:UpdateLayout()
+    end
+
+    function Loading:ShowSidebarPage(Bool)
+        Loading.ShowSidebar = Bool
+        Loading:UpdateLayout()
+    end
+
+    function Loading:ShowErrorPage(Enabled)
+        Loading.IsError = Enabled
+        InnerContent.Visible = not Enabled
+        ErrorFrame.Visible = Enabled
+
+        if Loading.ShowSidebar then
+            Loading:ShowSidebarPage(not Enabled)
+        else
+            Loading:UpdateLayout()
+        end
+    end
+
+    function Loading:SetErrorMessage(Text)
+        ErrorLabel.Text = Text
+        Loading:UpdateLayout()
+    end
+
+    function Loading:SetErrorButtons(Buttons)
+        assert(typeof(Buttons) == "table", "Buttons must be a table")
+
+        for _, Child in next, ErrorButtonsHolder:GetChildren() do
+            if Child:IsA("Frame") then
+                Child:Destroy()
+            end
+        end
+
+        local HasButtons = GetTableSize(Buttons) > 0
+        ErrorButtonsHolder.Visible = HasButtons
+        ErrorButtonsDivider.Visible = HasButtons
+
+        for Idx, ButtonInfo in next, Buttons do
+            local Variant = ButtonInfo.Variant or "Primary"
+
+            local BtnColor = "MainColor"
+            local BtnBorderColor = "OutlineColor"
+
+            if Variant == "Primary" then
+                BtnColor = "FontColor"
+                BtnBorderColor = "FontColor"
+            elseif Variant == "Destructive" then
+                BtnColor = "DestructiveColor"
+                BtnBorderColor = "DestructiveColor"
+            elseif Variant == "Ghost" then
+                BtnColor = "BackgroundColor"
+                BtnBorderColor = "BackgroundColor"
+            end
+
+            local ButtonContainer = Library:Create("Frame", {
+                BackgroundTransparency = 1;
+                Size = UDim2.fromOffset(0, 26);
+                ZIndex = 5;
+                Parent = ErrorButtonsHolder;
+            })
+
+            local TextBtn = Library:Create("TextButton", {
+                BackgroundColor3 = BtnColor;
+                BorderColor3 = BtnBorderColor;
+                BorderMode = Enum.BorderMode.Inset;
+                Size = UDim2.fromOffset(0, 26);
+                Text = "";
+                AutoButtonColor = false;
+                ZIndex = 6;
+                Parent = ButtonContainer;
+            })
+
+            Library:AddToRegistry(TextBtn, {
+                BackgroundColor3 = BtnColor;
+                BorderColor3 = BtnBorderColor;
+            })
+
+            Library:AddOutline(TextBtn)
+
+            local BtnPadding = Library:Create("UIPadding", {
+                PaddingLeft = UDim.new(0, 15);
+                PaddingRight = UDim.new(0, 15);
+                Parent = TextBtn;
+            })
+
+            local TextColor = "FontColor"
+            if Variant == "Primary" then
+                TextColor = "BackgroundColor"
+            elseif Variant == "Destructive" then
+                TextColor = Color3.new(1, 1, 1)
+            end
+
+            local BtnLabel = Library:CreateLabel({
+                BackgroundTransparency = 1;
+                Size = UDim2.fromScale(1, 1);
+                Text = ButtonInfo.Title or Idx;
+                TextColor3 = TextColor;
+                TextSize = 14;
+                ZIndex = 7;
+                Parent = TextBtn;
+            })
+
+            if typeof(TextColor) == "string" then
+                Library:AddToRegistry(BtnLabel, {
+                    TextColor3 = TextColor;
+                })
+            end
+
+            local LabelX = Library:GetTextBounds(BtnLabel.Text, Library.Font, 14)
+            ButtonContainer.Size = UDim2.fromOffset(LabelX + 30, 26)
+            TextBtn.Size = UDim2.fromOffset(LabelX + 30, 26)
+
+            local ActiveColor = typeof(BtnColor) == "Color3" and BtnColor or Library[BtnColor]
+            local HoverColor = Variant == "Ghost" and Library.MainColor or Library:GetBetterColor(ActiveColor, 10)
+
+            TextBtn.MouseEnter:Connect(function()
+                TweenService:Create(TextBtn, FadeInfo, { BackgroundColor3 = HoverColor }):Play()
+            end)
+
+            TextBtn.MouseLeave:Connect(function()
+                TweenService:Create(TextBtn, FadeInfo, { BackgroundColor3 = ActiveColor }):Play()
+            end)
+
+            TextBtn.MouseButton1Click:Connect(function()
+                if ButtonInfo.Callback then
+                    Library:SafeCallback(ButtonInfo.Callback, Loading)
+                end
+            end)
+        end
+
+        Loading:UpdateLayout()
+    end
+
+    function Loading:SetAlwaysOnTop(Enabled)
+        Loading.AlwaysOnTop = Enabled
+        SetAlwaysOnTop(Enabled)
+    end
+
+    function Loading:Destroy()
+        if IconTween then
+            IconTween:Cancel()
+            IconTween = nil
+        end
+
+        LoadingGui:Destroy()
+        Loading.Destroyed = true
+        Library.ActiveLoading = nil
+
+        if not Library.Toggled and not Library.Unloaded then
+            Library:Toggle(true)
+        end
+    end
+
+    Loading.Continue = Loading.Destroy
+
+    if Library.Toggled and not Library.Unloaded then
+        Library:Toggle(false)
+    end
+
+    Loading:SetCurrentStep(Loading.CurrentStep)
+
+    Library.ActiveLoading = Loading
+
+    return Loading
+end
+
 getgenv().Linoria = Library
 if getgenv().skip_getgenv_linoria ~= true then getgenv().Library = Library end
 return Library
