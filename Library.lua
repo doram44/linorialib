@@ -1265,6 +1265,7 @@ function Library:AddDraggableMenu(Name)
 
     ContainerLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(Resize)
     Resize()
+    Resize()
 
     Library:MakeDraggable(Holder, 34, false)
 
